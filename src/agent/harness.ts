@@ -49,6 +49,20 @@ Rules:
    then one last line: "Paling sedikit: <Name> (<N> hari)" (or "Paling banyak: ..."), choosing the SMALLEST (or LARGEST) number from the lines above, not the last one.`;
 }
 
+// Earlier turns go in as one system note instead of replayed chat turns. Measured with the
+// 4B model: replayed turns made it answer from the previous reply and skip search_policy
+// (0/5 correct on a policy question), while the note kept it searching (5/5).
+function historyNote(history: ChatMessage[]): ChatMessage[] {
+  if (history.length === 0) return [];
+  const turns = history.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
+  return [
+    {
+      role: "system",
+      content: `Earlier in this conversation (only to resolve references like "itu" or "kalau begitu"; it is NOT evidence, always use tools for facts):\n${turns}`,
+    },
+  ];
+}
+
 // Walks get_subordinat_list over MCP to build the requester's downline (direct + indirect).
 async function isAuthorized(mcp: McpToolClient, requesterId: string, targetId: string): Promise<boolean> {
   const requester = requesterId.toUpperCase();
@@ -100,7 +114,7 @@ export async function runAgent(opts: {
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt(employeeId) },
-    ...(opts.history ?? []),
+    ...historyNote(opts.history ?? []),
     { role: "user", content: question },
   ];
 

@@ -140,6 +140,34 @@ describe("agent harness", () => {
     });
   });
 
+  it("passes earlier turns as a system note, not as chat turns the model can copy", async () => {
+    // Measured with the real model: raw earlier turns made it skip the document search
+    // (0/5 correct); the same turns as a system note kept it searching (5/5).
+    let seen: ChatMessage[] = [];
+    const llm = async (messages: ChatMessage[]) => {
+      seen = messages;
+      return reply("Halo!");
+    };
+
+    await runAgent({
+      question: "halo",
+      employeeId: "E002",
+      mcp,
+      tools,
+      llm,
+      history: [
+        { role: "user", content: "Boleh WFH berapa hari seminggu?" },
+        { role: "assistant", content: "Maksimal 2 hari per minggu." },
+      ],
+    });
+
+    assert.deepEqual(seen.map((m) => m.role), ["system", "system", "user"]);
+    assert.match(seen[1].content, /Boleh WFH berapa hari seminggu\?/);
+    assert.match(seen[1].content, /Maksimal 2 hari per minggu\./);
+    assert.match(seen[1].content, /not evidence/i);
+    assert.equal(seen[2].content, "halo");
+  });
+
   it("does not force a search for small talk", async () => {
     const llm = async () => reply("Halo! Ada yang bisa saya bantu soal HR?");
 
