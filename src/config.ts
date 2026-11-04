@@ -10,7 +10,7 @@ export const config = {
   chatModel: process.env.CHAT_MODEL ?? "qwen3:4b",
   embedModel: process.env.EMBED_MODEL ?? "bge-m3",
   topK: Number(process.env.TOP_K ?? 4),
-  minSimilarity: Number(process.env.MIN_SIMILARITY ?? 0.45),
+  minSimilarity: Number(process.env.MIN_SIMILARITY ?? 0.59),
   maxIterations: Number(process.env.MAX_AGENT_ITERATIONS ?? 5),
   docPath: path.join(root, "data", "hr-policies.md"),
   dbPath: path.join(root, ".lancedb"),
