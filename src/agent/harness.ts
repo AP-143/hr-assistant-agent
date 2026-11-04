@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { traceLine, type AgentEvent } from "./events.js";
 import { chat, type ChatMessage, type ToolSpec } from "./llm.js";
 import type { McpToolClient } from "./mcpClient.js";
 import { SEARCH_POLICY, runSearchPolicy } from "./tools.js";
@@ -21,6 +22,7 @@ export function isSmallTalk(text: string): boolean {
 }
 
 export type TraceFn = (line: string) => void;
+type EmitFn = (event: AgentEvent) => void;
 
 const AUTHZ_TOOLS = new Set(["get_leave_balance", "get_subordinat_list"]);
 
@@ -87,11 +89,11 @@ async function isAuthorized(mcp: McpToolClient, requesterId: string, targetId: s
   return false;
 }
 
-async function withRetry<T>(fn: () => Promise<T>, trace: TraceFn, label: string): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, emit: EmitFn, label: string): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    trace(`retry ${label}: ${(err as Error).message}`);
+    emit({ type: "retry", label, message: (err as Error).message });
     return await fn();
   }
 }
@@ -103,12 +105,17 @@ export async function runAgent(opts: {
   tools: ToolSpec[];
   history?: ChatMessage[];
   trace?: TraceFn;
+  onEvent?: (event: AgentEvent) => void;
   // Injectable so the loop can be tested with a scripted model.
   llm?: (messages: ChatMessage[], tools: ToolSpec[]) => Promise<ChatMessage>;
   maxIterations?: number;
 }): Promise<RunResult> {
   const { question, employeeId, mcp, tools } = opts;
-  const trace = opts.trace ?? (() => {});
+  // Single reporting point: the text trace is derived from the same events.
+  const emit: EmitFn = (event) => {
+    opts.onEvent?.(event);
+    opts.trace?.(traceLine(event, employeeId));
+  };
   const llm = opts.llm ?? chat;
   const maxIterations = opts.maxIterations ?? config.maxIterations;
 
@@ -131,7 +138,7 @@ export async function runAgent(opts: {
 
   for (let i = 1; i <= maxIterations; i++) {
     result.iterations = i;
-    const reply = await withRetry(() => llm(messages, tools), trace, "llm");
+    const reply = await withRetry(() => llm(messages, tools), emit, "llm");
     const calls = reply.tool_calls ?? [];
 
     if (calls.length === 0) {
@@ -139,7 +146,7 @@ export async function runAgent(opts: {
       // Grounding check, step 1: no evidence gathered yet, so push the model toward a tool once.
       if (ungrounded && !nudged) {
         nudged = true;
-        trace(`[${i}] answered without any tool -> nudging once`);
+        emit({ type: "nudge", iteration: i });
         messages.push(reply, { role: "user", content: NUDGE });
         continue;
       }
@@ -155,9 +162,9 @@ export async function runAgent(opts: {
         // prepend the previous user question to give the retriever something to match.
         const previousQuestion = [...(opts.history ?? [])].reverse().find((m) => m.role === "user")?.content;
         const args = { query: previousQuestion ? `${previousQuestion} ${question}` : question };
-        trace(`[${i}] still no tool -> harness runs ${SEARCH_POLICY} ${JSON.stringify(args)}`);
-        const output = await withRetry(() => runSearchPolicy(args), trace, SEARCH_POLICY);
-        trace(`[${i}] tool_result ${output.slice(0, 160)}${output.length > 160 ? "..." : ""}`);
+        emit({ type: "forced_search", iteration: i, query: args.query });
+        const output = await withRetry(() => runSearchPolicy(args), emit, SEARCH_POLICY);
+        emit({ type: "tool_result", iteration: i, name: SEARCH_POLICY, output });
         messages.push(
           reply,
           { role: "assistant", content: "", tool_calls: [{ function: { name: SEARCH_POLICY, arguments: args } }] },
@@ -166,7 +173,7 @@ export async function runAgent(opts: {
         continue;
       }
       result.answer = reply.content;
-      trace(`[${i}] final answer`);
+      emit({ type: "final", iteration: i, answer: result.answer });
       return result;
     }
 
@@ -175,35 +182,41 @@ export async function runAgent(opts: {
     for (const call of calls) {
       const { name, arguments: args } = call.function;
       const callKey = `${name}:${JSON.stringify(args)}`;
-      trace(`[${i}] tool_call ${name} ${JSON.stringify(args)}`);
+      emit({
+        type: "tool_call",
+        iteration: i,
+        name,
+        args,
+        source: name === SEARCH_POLICY ? "documents" : "hr_system",
+      });
 
       let output: string;
       if (seenCalls.has(callKey)) {
         // Loop guard: identical call repeated, so stop the model from spinning.
-        trace(`[${i}] duplicate call blocked`);
+        emit({ type: "duplicate", iteration: i, name });
         output = JSON.stringify({ error: "Duplicate tool call. Use the earlier result and write the final answer." });
       } else {
         seenCalls.add(callKey);
         result.toolsCalled.push(name);
 
         if (AUTHZ_TOOLS.has(name) && !(await isAuthorized(mcp, employeeId, String(args.employee_id ?? "")))) {
-          trace(`[${i}] BLOCKED ${name}: ${employeeId} may not access ${String(args.employee_id)}`);
+          emit({ type: "blocked", iteration: i, name, target: String(args.employee_id) });
           result.blocked.push(name);
           output = JSON.stringify({ error: "Access denied. You may only view yourself and your own subordinates." });
         } else if (name === SEARCH_POLICY) {
-          output = await withRetry(() => runSearchPolicy(args), trace, name);
+          output = await withRetry(() => runSearchPolicy(args), emit, name);
         } else {
-          output = (await withRetry(() => mcp.callTool(name, args), trace, name)).text;
+          output = (await withRetry(() => mcp.callTool(name, args), emit, name)).text;
         }
       }
 
-      trace(`[${i}] tool_result ${output.slice(0, 160)}${output.length > 160 ? "..." : ""}`);
+      emit({ type: "tool_result", iteration: i, name, output });
       messages.push({ role: "tool", tool_name: name, content: output });
     }
   }
 
   result.hitIterationLimit = true;
   result.answer = "Maaf, saya tidak bisa menyelesaikan pertanyaan ini. Silakan hubungi tim HR.";
-  trace(`iteration limit (${maxIterations}) reached`);
+  emit({ type: "iteration_limit", max: maxIterations });
   return result;
 }
