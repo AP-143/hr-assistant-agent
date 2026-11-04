@@ -136,7 +136,8 @@ img, svg { display: block; }
   height: calc(52 * var(--u));
   resize: none; outline: none; overflow-y: auto; scrollbar-width: none;
   color: #ececee;
-  font-size: calc(9.97 * var(--u)); font-weight: 400; line-height: 1.35; letter-spacing: var(--body-ls);
+  /* The reference size (9.97u) is only 10 to 12 px on a laptop: too small to read in a live demo. */
+  font-size: max(13px, calc(9.97 * var(--u))); font-weight: 400; line-height: 1.35; letter-spacing: var(--body-ls);
 }
 .ph::placeholder { color: #8B8C8E; opacity: 1; }
 .ph::-webkit-scrollbar { display: none; }
@@ -363,7 +364,7 @@ img, svg { display: block; }
     padding: clamp(15px, 1.9vw, 24px); border-radius: clamp(17px, 2.1vw, 26px);
     display: flex; flex-direction: column; gap: clamp(20px, 3.2vh, 44px);
   }
-  .ph { position: static; width: 100%; height: 2.8em; font-size: clamp(11px, 1.35vw, 14px); line-height: 1.4; }
+  .ph { position: static; width: 100%; height: 2.8em; font-size: clamp(13px, 1.35vw, 14px); line-height: 1.4; }
   .tools { position: static; height: auto; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: clamp(10px, 1.4vw, 18px); }
   .chips { height: auto; flex-wrap: nowrap; gap: clamp(6px, .85vw, 10px); }
   .chip { width: auto; height: clamp(29px, 3.4vh, 34px); padding: 0 clamp(7px, 1vw, 13px); gap: 5px; font-size: clamp(9.6px, 1.12vw, 12.5px); }
