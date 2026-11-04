@@ -15,7 +15,7 @@
 ## Results (for the README)
 
 - Chat model `qwen3:4b-instruct` (Ollama), embeddings `bge-m3`, 17 chunks, `MIN_SIMILARITY=0.59`, top-k 4.
-- `npm run eval`: **13/13 passed**, 11-14 s per full run. Five runs in total (three before and two after tightening the answer checks): no flaky case.
+- `npm run eval`: **13/13 passed**, 11-14 s per full run. Six runs in total (three before and three after tightening the answer checks; the last one after the history change): no flaky case.
 - Ran at the start on a clean first attempt; the failures that did show up earlier (tickets 04 and 05) were found by manual runs and are now fixed and covered by tests: reasoning leaking from the thinking model, "tidak tahu" without searching, no access check for other employees' data, wrong minimum in a comparison.
 - Sanity check that the suite can fail: with `MIN_SIMILARITY=0.3` (guardrail loosened) two cases turn red (retrieval returns chunks for an off-topic query; childcare question no longer gets "tidak tahu"). 11/13 passed.
 - Known limitation of rule-based checks: under the loosened guardrail the model refused with "tidak ada informasi tentang penitipan anak" (a correct refusal in meaning), which the strict `/tidak tahu/` check marks as a failure. A judge model would score it correctly; this is the argument for LLM-as-judge in the production plan.
