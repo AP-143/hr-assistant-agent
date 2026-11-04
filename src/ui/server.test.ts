@@ -81,7 +81,27 @@ describe("demo UI server", () => {
     const events = parseSse(await res.text());
     assert.deepEqual(events.map((e) => e.event), ["agent", "agent", "done"]);
     assert.equal(events[0].data.name, "search_policy");
-    assert.deepEqual(events[2].data, okResult);
+    assert.deepEqual(events[2].data, { ...okResult, summary: { badges: [], sources: [] } });
+  });
+
+  it("adds a summary (badges and sources) computed from the run's events to the result", async () => {
+    const base = await start(async (_input, onEvent) => {
+      onEvent({ type: "tool_call", iteration: 1, name: "search_policy", args: { query: "wfh" }, source: "documents" });
+      onEvent({
+        type: "tool_result",
+        iteration: 1,
+        name: "search_policy",
+        output: JSON.stringify({ found: true, passages: [{ section: "Doc > 3. Kerja > 3.1 Kebijakan WFH", similarity: 0.7, text: "..." }] }),
+      });
+      return okResult;
+    });
+
+    const done = parseSse(await (await post(base, valid)).text()).at(-1);
+
+    assert.deepEqual(done?.data.summary, {
+      badges: ["documents"],
+      sources: [{ section: "3.1 Kebijakan WFH", similarity: 0.7 }],
+    });
   });
 
   it("passes the question, employee and history to the agent", async () => {

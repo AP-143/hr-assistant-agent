@@ -8,6 +8,7 @@ import type { ChatMessage } from "../agent/llm.js";
 // Only used to check that the employee ID the page sends is one of the demo users. This is
 // the "login directory"; the agent itself still reaches HR data only through MCP.
 import { findEmployee } from "../mcp-server/data.js";
+import { summarize } from "./summary.js";
 
 export type AgentRunner = (
   input: { question: string; employeeId: string; history: ChatMessage[] },
@@ -102,8 +103,12 @@ export function createUiServer(deps: {
       if (!res.writableEnded && !res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
     try {
-      const result = await deps.run(input, (event) => send("agent", event));
-      send("done", result);
+      const events: AgentEvent[] = [];
+      const result = await deps.run(input, (event) => {
+        events.push(event);
+        send("agent", event);
+      });
+      send("done", { ...result, summary: summarize(events, result) });
     } catch (err) {
       send("error", { message: (err as Error).message });
     } finally {

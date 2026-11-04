@@ -241,6 +241,47 @@ img, svg { display: block; }
 .thinking i:nth-child(3) { animation-delay: .3s; }
 @keyframes pulse { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
 
+/* ---------- how the agent got the answer ---------- */
+.steps {
+  margin-bottom: .75em; border-radius: calc(12 * var(--u)); font-size: .84em;
+  background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07);
+}
+.steps[hidden] { display: none; }
+.steps > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: .65em; padding: .55em .85em; color: #b9bac0;
+}
+.steps > summary::-webkit-details-marker { display: none; }
+.steps > summary::before {
+  content: ""; flex: none; width: .42em; height: .42em;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform .2s ease;
+}
+.steps[open] > summary::before { transform: rotate(45deg); }
+.step-list { display: flex; flex-direction: column; gap: .55em; padding: .1em .85em .7em; }
+.step { display: flex; align-items: baseline; gap: .75em; }
+.tag {
+  flex: none; min-width: 7.2em; text-align: center; padding: .14em .6em; border-radius: 999px;
+  font-size: .82em; font-weight: 560; letter-spacing: .01em; white-space: nowrap;
+}
+.step-body { min-width: 0; color: #d6d7db; overflow-wrap: anywhere; line-height: 1.45; }
+.step-body code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .93em; color: #f1f1f2; }
+.step-body .result { display: block; margin-top: .15em; color: #9a9ba1; }
+.tag.documents, .badge.documents { color: #8fe0ae; background: rgba(80, 200, 130, .15); }
+.tag.hr_system, .badge.hr_system { color: #93bdff; background: rgba(90, 150, 255, .15); }
+.tag.blocked, .badge.denied { color: #ff9a92; background: rgba(255, 105, 95, .16); }
+.tag.warn, .badge.unknown { color: #f3d37e; background: rgba(240, 195, 80, .15); }
+.tag.note, .badge.fallback { color: #c0c1c6; background: rgba(255, 255, 255, .10); }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5em .6em; margin-top: .85em; }
+.meta:empty { display: none; }
+.badge { padding: .22em .75em; border-radius: 999px; font-size: .8em; font-weight: 560; letter-spacing: .01em; }
+.sources { display: contents; }
+.source {
+  padding: .22em .7em; border-radius: 999px; font-size: .78em; color: #b9bac0;
+  background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+.frame.trace-off .steps, .frame.trace-off .sources { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -288,9 +329,9 @@ img, svg { display: block; }
               <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(11.8*var(--u))"><path d="M1 1.5A1.5 1.5 0 0 1 2.5 0h7A1.5 1.5 0 0 1 11 1.5v5A1.5 1.5 0 0 1 9.5 8H5.2l-2.8 2.6a.5.5 0 0 1-.84-.37V8h-.06A1.5 1.5 0 0 1 1 6.5z"/></svg>
               <span>Examples</span>
             </button>
-            <button type="button" class="chip" style="--cw:107;--pl:15.8;--ig:2.9">
+            <button type="button" class="chip" id="trace-toggle" aria-pressed="true" title="Show or hide the agent's steps" style="--cw:107;--pl:15.8;--ig:2.9">
               <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(12.13*var(--u))"><rect x="0" y="1" width="12" height="2.4" rx="1.2"/><rect x="0" y="4.8" width="8" height="2.4" rx="1.2"/><rect x="0" y="8.6" width="10" height="2.4" rx="1.2"/></svg>
-              <span>Trace on</span>
+              <span id="trace-label">Trace on</span>
             </button>
           </div>
           <div class="right">
@@ -356,6 +397,122 @@ img, svg { display: block; }
 
   const scrollDown = () => { thread.scrollTop = thread.scrollHeight; };
 
+  const BADGES = {
+    documents: "From documents",
+    hr_system: "From HR system",
+    denied: "Access denied",
+    unknown: "Don't know",
+    fallback: "Safety fallback",
+  };
+  const shortSection = (heading) => heading.split(" > ").pop();
+
+  // One line under a step: what the tool gave back, in plain words.
+  function describeResult(name, output) {
+    try {
+      const data = JSON.parse(output);
+      if (name === "search_policy") {
+        return data.found
+          ? `${data.passages.length} sections: ${data.passages.map((p) => `${shortSection(p.section)} (${p.similarity.toFixed(2)})`).join(", ")}`
+          : `no relevant section (best similarity ${Number(data.best_similarity).toFixed(2)})`;
+      }
+      if (data.error) return data.error;
+      if ("leave_remaining_days" in data) return `${data.name}: ${data.leave_remaining_days} days left, ${data.leave_taken_days} taken`;
+      if (Array.isArray(data.subordinates)) {
+        return data.subordinates.length
+          ? `${data.subordinates.length} direct reports: ${data.subordinates.map((s) => s.name).join(", ")}`
+          : "no direct reports";
+      }
+    } catch { /* not JSON: fall through */ }
+    return output.slice(0, 120);
+  }
+
+  // One question and its answer: live steps first, then the answer, badges and sources.
+  function createTurn() {
+    const bubble = el("div", "msg assistant");
+    const steps = el("details", "steps");
+    steps.open = true;
+    steps.hidden = true;
+    const summaryText = el("span", "", "Working…");
+    steps.append(el("summary"), el("div", "step-list"));
+    steps.firstChild.append(summaryText);
+    const list = steps.lastChild;
+    const dots = el("div", "thinking");
+    dots.append(el("i"), el("i"), el("i"));
+    dots.setAttribute("aria-label", "The assistant is working");
+    const answer = el("div", "answer");
+    const meta = el("div", "meta");
+    bubble.append(steps, dots, answer, meta);
+
+    const names = [];
+    let rows = 0;
+    let lastCall = null;
+
+    function addRow(kind, tag, detail) {
+      steps.hidden = false;
+      rows += 1;
+      const body = el("div", "step-body");
+      body.append(el("code", "", detail));
+      const row = el("div", "step");
+      row.append(el("span", `tag ${kind}`, tag), body);
+      list.append(row);
+      return body;
+    }
+
+    return {
+      bubble,
+      onEvent(event) {
+        switch (event.type) {
+          case "tool_call": {
+            const docs = event.source === "documents";
+            const detail = docs
+              ? `search “${event.args.query}”`
+              : `${event.name}(${Object.entries(event.args).map(([k, v]) => `${k}=${v}`).join(", ")})`;
+            lastCall = { name: event.name, body: addRow(docs ? "documents" : "hr_system", docs ? "Documents" : "HR system", detail) };
+            names.push(event.name);
+            break;
+          }
+          case "tool_result":
+            if (lastCall && lastCall.name === event.name) {
+              lastCall.body.append(el("span", "result", describeResult(event.name, event.output)));
+            }
+            lastCall = null;
+            break;
+          case "blocked":
+            addRow("blocked", "Blocked", `access to ${event.target} denied: you may only view yourself and your team`);
+            lastCall = null;
+            break;
+          case "duplicate": addRow("note", "Skipped", `repeated ${event.name} call ignored`); break;
+          case "nudge": addRow("warn", "Nudge", "the model answered without looking anything up, so it was asked to use a tool"); break;
+          case "forced_search":
+            lastCall = { name: "search_policy", body: addRow("warn", "Forced search", `search “${event.query}”`) };
+            names.push("search_policy (forced)");
+            break;
+          case "retry": addRow("note", "Retry", `${event.label}: ${event.message}`); break;
+          case "iteration_limit": addRow("note", "Limit", `stopped after ${event.max} steps`); break;
+          default: break;
+        }
+        scrollDown();
+      },
+      finish(result) {
+        dots.remove();
+        renderText(answer, result.answer);
+        summaryText.textContent = rows ? `${rows} step${rows > 1 ? "s" : ""} · ${[...new Set(names)].join(" → ")}` : "";
+        steps.open = false;
+        for (const badge of result.summary?.badges ?? []) meta.append(el("span", `badge ${badge}`, BADGES[badge]));
+        const sources = el("div", "sources");
+        for (const s of result.summary?.sources ?? []) sources.append(el("span", "source", `${s.section} · ${s.similarity.toFixed(2)}`));
+        meta.append(sources);
+      },
+      fail(message) {
+        dots.remove();
+        bubble.classList.add("error");
+        answer.append(el("p", "", `Something went wrong: ${message}`));
+        summaryText.textContent = "Stopped";
+        steps.open = false;
+      },
+    };
+  }
+
   function setBusy(value) {
     busy = value;
     sendBtn.setAttribute("aria-disabled", String(value));
@@ -391,12 +548,8 @@ img, svg { display: block; }
     frame.classList.add("chat");
     thread.appendChild(el("div", "msg user", question));
     prompt.value = "";
-    const bubble = el("div", "msg assistant");
-    const dots = el("div", "thinking");
-    dots.append(el("i"), el("i"), el("i"));
-    dots.setAttribute("aria-label", "The assistant is working");
-    bubble.appendChild(dots);
-    thread.appendChild(bubble);
+    const turn = createTurn();
+    thread.appendChild(turn.bubble);
     scrollDown();
     setBusy(true);
 
@@ -410,19 +563,24 @@ img, svg { display: block; }
         const problem = await res.json().catch(() => ({}));
         throw new Error(problem.error || `Request failed (${res.status})`);
       }
-      const result = await readStream(res, () => {});
-      bubble.replaceChildren();
-      renderText(bubble, result.answer);
+      const result = await readStream(res, (event) => turn.onEvent(event));
+      turn.finish(result);
       history.push({ role: "user", content: question }, { role: "assistant", content: result.answer });
     } catch (err) {
-      bubble.classList.add("error");
-      bubble.replaceChildren(el("p", "", `Something went wrong: ${err.message}`));
+      turn.fail(err.message);
     } finally {
       setBusy(false);
       scrollDown();
       prompt.focus();
     }
   }
+
+  const traceButton = document.getElementById("trace-toggle");
+  traceButton.addEventListener("click", () => {
+    const off = frame.classList.toggle("trace-off");
+    traceButton.setAttribute("aria-pressed", String(!off));
+    document.getElementById("trace-label").textContent = off ? "Trace off" : "Trace on";
+  });
 
   form.addEventListener("submit", (event) => { event.preventDefault(); send(); });
   prompt.addEventListener("keydown", (event) => {
