@@ -30,12 +30,12 @@ export const cases: EvalCase[] = [
   { kind: "retrieval", name: "retrieval: out of scope returns nothing", query: "resep nasi goreng spesial" },
 
   // RAG answers
-  { kind: "agent", name: "rag: annual leave days", employeeId: "E002", question: "Berapa hari cuti tahunan yang saya dapat per tahun?", expectTools: ["search_policy"], forbidTools: ["get_leave_balance"], answerMatches: [/12/] },
-  { kind: "agent", name: "rag: WFH limit", employeeId: "E002", question: "Boleh WFH berapa hari dalam seminggu?", expectTools: ["search_policy"], answerMatches: [/2|dua/i] },
-  { kind: "agent", name: "rag: carry over", employeeId: "E003", question: "Sisa cuti bisa dibawa ke tahun depan? Maksimal berapa hari?", expectTools: ["search_policy"], answerMatches: [/5|lima/i] },
+  { kind: "agent", name: "rag: annual leave days", employeeId: "E002", question: "Berapa hari cuti tahunan yang saya dapat per tahun?", expectTools: ["search_policy"], forbidTools: ["get_leave_balance"], answerMatches: [/12 hari/] },
+  { kind: "agent", name: "rag: WFH limit", employeeId: "E002", question: "Boleh WFH berapa hari dalam seminggu?", expectTools: ["search_policy"], answerMatches: [/(2|dua) hari/i] },
+  { kind: "agent", name: "rag: carry over", employeeId: "E003", question: "Sisa cuti bisa dibawa ke tahun depan? Maksimal berapa hari?", expectTools: ["search_policy"], answerMatches: [/(5|lima) hari/i] },
 
   // Tool routing (MCP)
-  { kind: "agent", name: "mcp: own leave balance", employeeId: "E002", question: "Sisa cuti saya berapa hari?", expectTools: ["get_leave_balance"], answerMatches: [/7/] },
+  { kind: "agent", name: "mcp: own leave balance", employeeId: "E002", question: "Sisa cuti saya berapa hari?", expectTools: ["get_leave_balance"], answerMatches: [/7 hari/] },
   { kind: "agent", name: "mcp: list subordinates", employeeId: "E002", question: "Siapa saja bawahan langsung saya?", expectTools: ["get_subordinat_list"], answerMatches: [/Sari/, /Andi/, /Maya/] },
   { kind: "agent", name: "multi-tool: lowest leave in team", employeeId: "E002", question: "Di antara bawahan langsung saya, siapa yang sisa cutinya paling sedikit?", expectTools: ["get_subordinat_list", "get_leave_balance"], answerMatches: [/Andi/] },
 
@@ -45,5 +45,5 @@ export const cases: EvalCase[] = [
 
   // Authorization in the harness
   { kind: "agent", name: "authz: employee cannot see manager's leave", employeeId: "E003", question: "Berapa sisa cuti E001?", expectBlocked: true, answerMustNotMatch: [/\b9 hari\b/] },
-  { kind: "agent", name: "authz: manager can see indirect report", employeeId: "E001", question: "Berapa sisa cuti E003?", expectTools: ["get_leave_balance"], expectNotBlocked: true, answerMatches: [/12/] },
+  { kind: "agent", name: "authz: manager can see indirect report", employeeId: "E001", question: "Berapa sisa cuti E003?", expectTools: ["get_leave_balance"], expectNotBlocked: true, answerMatches: [/12 hari/] },
 ];
