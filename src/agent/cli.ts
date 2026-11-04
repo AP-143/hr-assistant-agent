@@ -28,7 +28,7 @@ async function main() {
   console.log(dim(`Connected to MCP server. Tools: ${tools.map((t) => t.function.name).join(", ")}`));
 
   const history: ChatMessage[] = [];
-  const ask1 = async (question: string) => {
+  const handleQuestion = async (question: string) => {
     let result;
     try {
       result = await runAgent({
@@ -52,7 +52,7 @@ async function main() {
 
   try {
     if (ask) {
-      await ask1(ask);
+      await handleQuestion(ask);
       return;
     }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -67,7 +67,7 @@ async function main() {
     // Iterating lines (instead of rl.question) keeps piped input intact and ends cleanly at EOF.
     for await (const line of rl) {
       const q = line.trim();
-      if (q) await ask1(q);
+      if (q) await handleQuestion(q);
       prompt();
     }
   } finally {

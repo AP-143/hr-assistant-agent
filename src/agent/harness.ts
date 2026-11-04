@@ -145,7 +145,10 @@ export async function runAgent(opts: {
       }
       // Step 2: the model ignored the nudge. Small models like to say "tidak tahu" without
       // looking, so the harness runs the document search itself and feeds the result back.
-      if (ungrounded && !result.forcedRetrieval && i < maxIterations) {
+      // With no iteration left to read that result, never return the unverified answer:
+      // leave the loop and use the safe fallback below.
+      if (ungrounded) {
+        if (i >= maxIterations) break;
         result.forcedRetrieval = true;
         result.toolsCalled.push(SEARCH_POLICY);
         // A follow-up like "kalau begitu hari apa saja?" has no topic of its own, so

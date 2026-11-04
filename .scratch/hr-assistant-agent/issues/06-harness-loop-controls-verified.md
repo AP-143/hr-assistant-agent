@@ -29,3 +29,11 @@ All run by a scripted model against the real MCP server and retriever (`src/agen
 | Trace | Blocked call | `tool_call`, `BLOCKED`, `tool_result` and `final answer` lines all present |
 
 Real-world check: with Ollama unreachable the CLI prints `retry llm: fetch failed` and then `Maaf, terjadi kesalahan: fetch failed` (exit code 1).
+
+## Post-review fixes
+
+A code review of the whole branch found three gaps in these controls; all are fixed and covered by tests:
+
+- **No timeouts:** a stuck model would hang the agent forever and the retry could not help. Ollama calls now share one helper with a hard timeout (`REQUEST_TIMEOUT_MS`, default 120 s) and MCP calls get `TOOL_TIMEOUT_MS` (default 30 s). With a 300 ms limit the CLI stops after the retry with a clear message in 1.8 s (exit 1).
+- **Unverified answer at a tiny iteration cap:** with `maxIterations=2` the forced search was skipped and a refusal written without searching was returned as final (reproduced). It now falls through to the safe fallback.
+- **README overclaim:** the access control was presented without saying that the identity is a CLI flag. The README now states what it protects against and what production would need (identity from an authenticated session).

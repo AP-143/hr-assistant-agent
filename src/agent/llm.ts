@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { postJson } from "../http.js";
 
 export interface ToolCall {
   function: { name: string; arguments: Record<string, unknown> };
@@ -17,22 +18,14 @@ export interface ToolSpec {
 }
 
 export async function chat(messages: ChatMessage[], tools: ToolSpec[]): Promise<ChatMessage> {
-  const res = await fetch(`${config.ollamaHost}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: config.chatModel,
-      messages,
-      tools,
-      stream: false,
-      think: false, // skip qwen3's reasoning pass: much faster on CPU
-      options: { temperature: 0.1 },
-    }),
+  const data = await postJson<{ message: ChatMessage }>("/api/chat", {
+    model: config.chatModel,
+    messages,
+    tools,
+    stream: false,
+    think: false, // only honoured by hybrid builds; the thinking build ignores it, so use the instruct model
+    options: { temperature: 0.1 },
   });
-  if (!res.ok) {
-    throw new Error(`Ollama chat failed (${res.status}): ${await res.text()}`);
-  }
-  const data = (await res.json()) as { message: ChatMessage };
   const message = data.message;
   message.content = stripReasoning(message.content ?? "");
   return message;

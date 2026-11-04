@@ -147,14 +147,17 @@ Unknown employees return a tool-level error, and IDs are normalised (case, white
 |---|---|
 | Runaway loops | Hard cap `MAX_AGENT_ITERATIONS` (default 5), then a safe fallback answer that points to the HR team |
 | Repeated calls | The same tool with identical arguments twice is not executed again; the model is told to use the earlier result |
-| Transient failures | One retry for LLM and tool errors, then a clear error (the CLI prints it and keeps the session alive) |
-| Skipped retrieval | If the model answers without calling any tool, it is nudged once; if it still does not, the harness runs `search_policy` itself and feeds the result back. Pure small talk ("halo", "terima kasih") is exempt |
+| Stuck model or tool | Hard timeouts: `REQUEST_TIMEOUT_MS` (default 120 s, generous for a cold CPU model load) on every Ollama call and `TOOL_TIMEOUT_MS` (default 30 s) on every MCP call |
+| Transient failures | One retry for LLM and tool errors (timeouts included), then a clear error (the CLI prints it and keeps the session alive) |
+| Skipped retrieval | If the model answers without calling any tool, it is nudged once; if it still does not, the harness runs `search_policy` itself and feeds the result back. Pure small talk ("halo", "terima kasih") is exempt. If the iteration cap leaves no room to read that result, the unverified answer is dropped and the safe fallback is returned instead |
 | Hallucination | `search_policy` returns `found=false` below the similarity gate, and the system prompt requires the fixed "tidak tahu" reply |
 | Authorization | Before `get_leave_balance` or `get_subordinat_list` runs, the harness walks the requester's downline through MCP. Employees can only read themselves and their subordinates (direct and indirect); anything else is blocked and the model is told access was denied |
 | Conversation memory | Earlier turns are passed as one system note, not as replayed chat turns (see below). A forced search for a follow-up prepends the previous question so the retriever has a topic |
 | Observability | Every iteration, tool call, result, block, and retry is printed as a trace line |
 
 Authorization lives in the harness on purpose: a prompt instruction ("do not reveal other people's data") can be bypassed by prompt injection, a code check cannot.
+
+**Scope of the access control:** it protects against the *model* leaking data, not against a user lying about who they are. In this demo the identity is just the `--employee-id` flag, so anyone can type `E001`. In production the harness would receive the employee ID from the authenticated session (SSO / signed token) and never from user input; the check itself stays the same.
 
 ### What running it against the real model taught me
 
@@ -189,7 +192,7 @@ The first version looked fine on paper. These failures only showed up with the r
 
 **Result: 13/13 passed** with `qwen3:4b-instruct` + `bge-m3`, in 11 to 18 seconds per run, repeated six times with no flaky case. As a sanity check that the suite can fail, setting `MIN_SIMILARITY=0.3` turns two cases red (11/13).
 
-Known limits of this suite: checks are regexes, so a correct refusal worded differently ("tidak ada informasi tentang ...") is marked as a failure; multi-turn behaviour is covered by unit tests only; and 13 cases is a smoke test, not a benchmark. Besides the eval, `npm test` runs 51 tests: chunker, retrieval (19 tests), MCP server over the protocol, reasoning stripper, loop controls, and access control.
+Known limits of this suite: checks are regexes, so a correct refusal worded differently ("tidak ada informasi tentang ...") is marked as a failure; multi-turn behaviour is covered by unit tests only; and 13 cases is a smoke test, not a benchmark. Besides the eval, `npm test` runs 55 tests: chunker, retrieval (19 tests), MCP server over the protocol, HTTP timeout handling, reasoning stripper, loop controls, and access control.
 
 ### What I would add in production
 
@@ -209,6 +212,7 @@ Known limits of this suite: checks are regexes, so a correct refusal worded diff
 ```
 data/hr-policies.md        sample HR document (Indonesian, fictional)
 src/config.ts              env-driven settings
+src/http.ts                Ollama POST helper with a hard timeout
 src/rag/                   chunk, embed, store, retrieve, ingest (+ tests)
 src/mcp-server/            MCP server + dummy data (+ protocol tests)
 src/agent/                 LLM client, MCP client, tools, harness, CLI (+ tests)

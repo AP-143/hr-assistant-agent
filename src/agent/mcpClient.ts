@@ -31,7 +31,9 @@ export class McpToolClient {
   }
 
   async callTool(name: string, args: Record<string, unknown>): Promise<{ text: string; isError: boolean }> {
-    const result = await this.client.callTool({ name, arguments: args });
+    const result = await this.client.callTool({ name, arguments: args }, undefined, {
+      timeout: config.toolTimeoutMs,
+    });
     const content = (result.content ?? []) as Array<{ type: string; text?: string }>;
     const text = content.map((c) => (c.type === "text" ? c.text ?? "" : "")).join("\n");
     return { text, isError: Boolean(result.isError) };

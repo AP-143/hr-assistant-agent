@@ -52,6 +52,27 @@ describe("harness loop controls", () => {
     assert.ok(lines.some((l) => l.includes("iteration limit (2) reached")));
   });
 
+  it("never returns an unverified answer when the cap leaves no room to force a search", async () => {
+    // A refusing model that never searches, with a cap so low the harness cannot force one.
+    const llm = async () => text("Maaf, saya tidak tahu.");
+    const { lines, trace } = collect();
+
+    const result = await runAgent({
+      question: "Berapa hari cuti tahunan yang saya dapat?",
+      employeeId: "E002",
+      mcp,
+      tools,
+      llm,
+      maxIterations: 2,
+      trace,
+    });
+
+    assert.equal(result.hitIterationLimit, true);
+    assert.deepEqual(result.toolsCalled, []);
+    assert.match(result.answer, /hubungi tim HR/i);
+    assert.ok(lines.some((l) => l.includes("iteration limit (2) reached")));
+  });
+
   it("blocks an identical repeated tool call and still finishes", async () => {
     // Asks for the same balance twice, then answers once it has seen the duplicate warning.
     const llm = async (messages: ChatMessage[]) => {
