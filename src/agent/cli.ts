@@ -29,14 +29,22 @@ async function main() {
 
   const history: ChatMessage[] = [];
   const ask1 = async (question: string) => {
-    const result = await runAgent({
-      question,
-      employeeId,
-      mcp,
-      tools,
-      history,
-      trace: (line) => console.log(dim(`  ${line}`)),
-    });
+    let result;
+    try {
+      result = await runAgent({
+        question,
+        employeeId,
+        mcp,
+        tools,
+        history,
+        trace: (line) => console.log(dim(`  ${line}`)),
+      });
+    } catch (err) {
+      // The harness already retried once; keep the session alive instead of crashing.
+      console.error(`\nMaaf, terjadi kesalahan: ${(err as Error).message}\n`);
+      process.exitCode = 1;
+      return;
+    }
     console.log(`\n${result.answer}\n`);
     // Keep only the final turns as memory, not the tool chatter.
     history.push({ role: "user", content: question }, { role: "assistant", content: result.answer });

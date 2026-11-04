@@ -91,10 +91,12 @@ export async function runAgent(opts: {
   trace?: TraceFn;
   // Injectable so the loop can be tested with a scripted model.
   llm?: (messages: ChatMessage[], tools: ToolSpec[]) => Promise<ChatMessage>;
+  maxIterations?: number;
 }): Promise<RunResult> {
   const { question, employeeId, mcp, tools } = opts;
   const trace = opts.trace ?? (() => {});
   const llm = opts.llm ?? chat;
+  const maxIterations = opts.maxIterations ?? config.maxIterations;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt(employeeId) },
@@ -113,7 +115,7 @@ export async function runAgent(opts: {
   const seenCalls = new Set<string>();
   let nudged = false;
 
-  for (let i = 1; i <= config.maxIterations; i++) {
+  for (let i = 1; i <= maxIterations; i++) {
     result.iterations = i;
     const reply = await withRetry(() => llm(messages, tools), trace, "llm");
     const calls = reply.tool_calls ?? [];
@@ -129,7 +131,7 @@ export async function runAgent(opts: {
       }
       // Step 2: the model ignored the nudge. Small models like to say "tidak tahu" without
       // looking, so the harness runs the document search itself and feeds the result back.
-      if (ungrounded && !result.forcedRetrieval && i < config.maxIterations) {
+      if (ungrounded && !result.forcedRetrieval && i < maxIterations) {
         result.forcedRetrieval = true;
         result.toolsCalled.push(SEARCH_POLICY);
         // A follow-up like "kalau begitu hari apa saja?" has no topic of its own, so
@@ -185,6 +187,6 @@ export async function runAgent(opts: {
 
   result.hitIterationLimit = true;
   result.answer = "Maaf, saya tidak bisa menyelesaikan pertanyaan ini. Silakan hubungi tim HR.";
-  trace(`iteration limit (${config.maxIterations}) reached`);
+  trace(`iteration limit (${maxIterations}) reached`);
   return result;
 }
