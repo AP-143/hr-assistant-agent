@@ -12,7 +12,7 @@ npm run eval                                           # 25 automatic checks, ~3
 npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
 
-The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control. It only answers requests addressed to localhost.
+The browser demo shows "Sedang mengetik" while the agent works, then the answer with a small badge of where it came from, and lets you switch the asking employee to try the access control. The full step-by-step trace is printed by `npm run chat`. It only answers requests addressed to localhost.
 
 ## 1. Architecture
 
@@ -38,6 +38,8 @@ flowchart LR
 **The harness** is where I put everything that must not depend on the model behaving well:
 - Stop after 5 steps, ignore repeated identical tool calls, time out and retry once.
 - If the model answers without looking anything up, nudge it once, then run the document search for it.
+- If the documents have nothing and no HR data backs the answer, replace whatever the model wrote with the polite not-covered reply.
+- Fix the wording in code: the user is always "Anda" (small models copy "saya" from the question), a bare employee ID gets its name ("Sari Dewi (E003)"), and a short follow-up like "Kalau Andi?" is rewritten into a complete question first, so it is not answered from policy text with an invented number.
 - Before a data tool runs, check the asker may see that person (themselves or their team). This is code, not a prompt rule, so it cannot be talked around. In the demo the employee ID is a CLI flag; in production it would come from the login session.
 
 ## 2. Trade-offs
