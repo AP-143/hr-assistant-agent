@@ -6,6 +6,7 @@
 <meta name="description" content="An HR chatbot that answers from company policy documents and checks live HR data. Runs locally.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
+<script>document.documentElement.classList.add("anim")</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=block">
@@ -312,6 +313,133 @@ img, svg { display: block; }
   background: rgba(0, 0, 0, .38); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
 }
 
+/* ---------- burger + mobile sheet: only the compact layout shows them ---------- */
+.burger, .sheet { display: none; }
+
+/* ---------- entrance animation: once, on first paint ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  :root { --e-primary: cubic-bezier(.16, 1, .3, 1); --e-soft: cubic-bezier(.22, 1, .36, 1); }
+  @keyframes e-settle-down { from { opacity: 0; transform: translateY(calc(-5 * var(--u))); } to { opacity: 1; transform: none; } }
+  @keyframes e-settle-up { from { opacity: 0; transform: translateY(calc(6 * var(--u))); } to { opacity: 1; transform: none; } }
+  @keyframes e-mark { from { transform: scale(.9); } to { transform: none; } }
+  @keyframes e-focus {
+    from { opacity: 0; transform: translateY(calc(14 * var(--u))); filter: blur(calc(6 * var(--u))); }
+    to { opacity: 1; transform: none; filter: blur(0); }
+  }
+  @keyframes e-panel { from { opacity: 0; transform: translateY(calc(18 * var(--u))) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes e-populate { from { opacity: 0; transform: translateY(calc(4 * var(--u))); } to { opacity: 1; transform: none; } }
+  @keyframes e-send { from { transform: scale(.82); } to { transform: none; } }
+
+  .anim .brand { animation: e-settle-down .58s var(--e-soft) .06s both; }
+  .anim .mark { animation: e-mark .62s var(--e-primary) .06s both; }
+  .anim .links a:nth-child(1) { animation: e-settle-down .50s var(--e-soft) .16s both; }
+  .anim .links a:nth-child(2) { animation: e-settle-down .50s var(--e-soft) .21s both; }
+  .anim .links a:nth-child(3) { animation: e-settle-down .50s var(--e-soft) .26s both; }
+  .anim .links a:nth-child(4) { animation: e-settle-down .50s var(--e-soft) .31s both; }
+  .anim .nav > .cta, .anim .burger { animation: e-settle-down .55s var(--e-soft) .34s both; }
+  .anim .h1 { animation: e-focus 1s var(--e-primary) .30s both; will-change: transform, opacity; }
+  .anim .card { animation: e-panel .9s var(--e-primary) .62s both; will-change: transform, opacity; }
+  .anim .ph { animation: e-populate .5s var(--e-soft) .88s both; }
+  .anim .chips { animation: e-populate .5s var(--e-soft) .94s both; }
+  .anim .right { animation: e-populate .5s var(--e-soft) 1s both; }
+  .anim .send { animation: e-send .5s var(--e-primary) 1s both; }
+  .anim .proof p { animation: e-settle-up .55s var(--e-soft) 1.08s both; }
+  .anim .stack span:nth-child(1) { animation: e-settle-up .55s var(--e-soft) 1.16s both; }
+  .anim .stack span:nth-child(2) { animation: e-settle-up .55s var(--e-soft) 1.22s both; }
+  .anim .stack span:nth-child(3) { animation: e-settle-up .55s var(--e-soft) 1.28s both; }
+}
+
+/* ---------- tablet: fluid version of the desktop layout ---------- */
+@media (min-width: 600px) and (max-width: 1180px) and (min-height: 600px) {
+  :root { --u: 1px; }
+  .frame { padding: clamp(24px, 3.4vh, 44px) clamp(28px, 4.2vw, 60px) clamp(26px, 4.4vh, 56px); }
+  .links { gap: clamp(14px, 2.6vw, 50px); }
+  .links a { font-size: clamp(12.5px, 1.85vw, 21.69px); }
+  .cta { width: clamp(112px, 14vw, 140px); font-size: clamp(13px, 1.5vw, 15.7px); }
+  /* The HR headline is longer than the reference one, so it may wrap on narrow tablets. */
+  .h1 { font-size: clamp(27px, 4.3vw, 44px); line-height: 1.12; white-space: normal; text-wrap: balance; max-height: 200px; }
+  .card {
+    width: min(100%, clamp(516px, 74vw, 760px)); height: auto; margin-right: 0;
+    padding: clamp(15px, 1.9vw, 24px); border-radius: clamp(17px, 2.1vw, 26px);
+    display: flex; flex-direction: column; gap: clamp(20px, 3.2vh, 44px);
+  }
+  .ph { position: static; width: 100%; height: 2.8em; font-size: clamp(11px, 1.35vw, 14px); line-height: 1.4; }
+  .tools { position: static; height: auto; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: clamp(10px, 1.4vw, 18px); }
+  .chips { height: auto; flex-wrap: nowrap; gap: clamp(6px, .85vw, 10px); }
+  .chip { width: auto; height: clamp(29px, 3.4vh, 34px); padding: 0 clamp(7px, 1vw, 13px); gap: 5px; font-size: clamp(9.6px, 1.12vw, 12.5px); }
+  .model { font-size: clamp(9.8px, 1.12vw, 12.5px); }
+  .right { position: static; display: flex; align-items: center; margin-left: auto; gap: 0; }
+  .right > * { position: static; }
+  .attach { margin-left: clamp(9px, 1.4vw, 20px); }
+  .send { margin-left: clamp(9px, 1.3vw, 18px); width: clamp(32px, 3.5vw, 38px); height: clamp(32px, 3.5vw, 38px); }
+  .thread { width: min(100%, clamp(516px, 74vw, 760px)); margin-right: 0; }
+  .proof { gap: clamp(15px, 2.5vh, 30px); }
+}
+
+/* ---------- compact: phones, and short landscape screens ---------- */
+@media (max-width: 599px), (max-height: 599px) and (max-width: 1180px) {
+  :root { --u: 1px; }
+  .frame {
+    padding: max(18px, env(safe-area-inset-top))
+             max(clamp(18px, 5.2vw, 40px), env(safe-area-inset-right))
+             max(20px, env(safe-area-inset-bottom))
+             max(clamp(18px, 5.2vw, 40px), env(safe-area-inset-left));
+  }
+  .links, .nav > .cta { display: none; }
+  .mark { width: 30px; height: 30px; }
+  .wordmark { font-size: 17px; }
+  .burger {
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    width: 38px; height: 38px; border-radius: 11px;
+    background: rgba(255, 255, 255, .10); border: 1px solid rgba(255, 255, 255, .14);
+  }
+  .sheet { display: grid; grid-template-rows: 0fr; flex: none; transition: grid-template-rows .32s cubic-bezier(.4, 0, .2, 1); }
+  #menu:checked ~ .sheet { grid-template-rows: 1fr; }
+  .sheet-inner { overflow: hidden; min-height: 0; }
+  .sheet-panel {
+    margin-top: 10px; padding: 8px; display: flex; flex-direction: column; border-radius: 16px;
+    background: rgba(24, 24, 27, .86); border: 1px solid rgba(255, 255, 255, .09);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  }
+  .sheet-panel a { padding: 11px 12px; font-size: 15px; border-radius: 10px; }
+  .sheet-panel a:hover { background: rgba(255, 255, 255, .08); }
+  .sheet-panel .sheet-cta {
+    margin-top: 6px; height: 40px; padding: 0; border-radius: 11px; font-size: 15px; font-weight: 520;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #3d3d3f 0%, #1d1d20 100%);
+  }
+  .h1 { width: 100%; max-width: 15ch; font-size: clamp(29px, 7.6vw, 50px); line-height: 1.14; letter-spacing: -.012em; white-space: normal; text-wrap: balance; max-height: 260px; }
+  .card {
+    width: 100%; max-width: 600px; height: auto; margin-right: 0;
+    padding: clamp(13px, 3.4vw, 18px); border-radius: 17px;
+    display: flex; flex-direction: column; gap: clamp(16px, 4.6vh, 34px);
+  }
+  /* 16px stops iOS from zooming the page when the box is focused. */
+  .ph { position: static; width: 100%; height: 3em; font-size: 16px; line-height: 1.35; }
+  .tools { position: static; height: auto; display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+  .chips { height: auto; flex-wrap: wrap; gap: 6px; }
+  .chip { width: auto; height: 30px; padding: 0 10px; gap: 5px; font-size: 11.5px; }
+  .right { position: static; display: flex; align-items: center; justify-content: flex-start; }
+  .right > * { position: static; }
+  .model { font-size: 11.5px; }
+  .attach { margin-left: auto; }
+  .send { margin-left: 14px; width: 40px; height: 40px; }
+  /* Menus span the card instead of hanging off a chip near the right edge. */
+  .chip-wrap { position: static; }
+  .menu { left: 0; right: 0; width: auto; min-width: 0; max-width: none; bottom: calc(100% + 8px); }
+  .menu button { font-size: 14px; }
+  .thread { width: 100%; max-width: 600px; margin-right: 0; }
+  .proof { gap: 18px; }
+  .proof p { font-size: 13px; }
+  .stack { gap: 26px; }
+  .stack span { font-size: 16px; }
+}
+@media (max-width: 1180px) and (max-height: 560px) {
+  .hero { gap: 16px; }
+  .h1 { font-size: clamp(24px, 5.4vh, 34px); }
+  .proof { gap: 10px; padding-top: 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -323,6 +451,7 @@ img, svg { display: block; }
          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
 
   <div class="frame" id="frame">
+    <input type="checkbox" id="menu" hidden>
     <header class="nav">
       <a class="brand" href="#" aria-label="HR Assistant home">
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
@@ -339,7 +468,21 @@ img, svg { display: block; }
         <a href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">Docs</a>
       </nav>
       <a class="cta" href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener"><span>How it works</span></a>
+      <label class="burger" id="burger" for="menu" role="button" tabindex="0" aria-label="Menu" aria-controls="sheet" aria-expanded="false">
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="none" aria-hidden="true"><path d="M0 1h17M0 11h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </label>
     </header>
+    <div class="sheet" id="sheet">
+      <div class="sheet-inner">
+        <div class="sheet-panel">
+          <a href="#">Chat</a>
+          <a href="#" id="sheet-examples">Examples</a>
+          <a href="https://github.com/AP-143/hr-assistant-agent#1-architecture" target="_blank" rel="noopener">Architecture</a>
+          <a href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">Docs</a>
+          <a class="sheet-cta" href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">How it works</a>
+        </div>
+      </div>
+    </div>
 
     <main class="hero">
       <h1 class="h1">Ask anything about HR. Answers come from our policies.</h1>
@@ -731,6 +874,28 @@ img, svg { display: block; }
   prompt.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
   });
+
+  // ----- burger menu (the checkbox does the work; this adds keyboard support and aria-expanded) -----
+  const menuToggle = document.getElementById("menu");
+  const burger = document.getElementById("burger");
+  menuToggle.addEventListener("change", () => burger.setAttribute("aria-expanded", String(menuToggle.checked)));
+  burger.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    menuToggle.checked = !menuToggle.checked;
+    menuToggle.dispatchEvent(new Event("change"));
+  });
+  document.getElementById("sheet-examples").addEventListener("click", (event) => {
+    event.preventDefault();
+    menuToggle.checked = false;
+    menuToggle.dispatchEvent(new Event("change"));
+    document.getElementById("examples-chip").click();
+  });
+
+  // ----- entrance animation: runs once, then the helper class is removed -----
+  const endAnimation = () => document.documentElement.classList.remove("anim");
+  document.querySelector(".stack span:last-child").addEventListener("animationend", endAnimation, { once: true });
+  setTimeout(endAnimation, 2600);
 
   // If the video cannot load (offline), the dark gradient behind it stays visible.
   document.querySelector(".stage-video").addEventListener("error", (event) => event.target.remove());
