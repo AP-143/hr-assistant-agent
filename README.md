@@ -9,7 +9,10 @@ ollama pull qwen3:4b-instruct && ollama pull bge-m3    # needs Node.js 22+ and O
 npm install && npm run ingest                          # read the HR document into the vector store
 npm run chat -- --employee-id E002                     # talk to it (add --ask "..." for one question)
 npm run eval                                           # 13 automatic checks, ~15 s
+npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
+
+The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control.
 
 ## 1. Architecture
 

@@ -6,7 +6,7 @@
 
 **Status:** done
 
-- [x] Tablet (600 to 1180 px wide, at least 600 px tall): nav stays horizontal, toolbar stays one row with chips left and controls right, headline stays on one line
+- [x] Tablet (600 to 1180 px wide, at least 600 px tall): nav stays horizontal, toolbar stays one row with chips left and controls right, headline scales fluidly (it wraps to two lines on narrow tablets because the HR headline is longer than the reference one; see the deviations)
 - [x] Compact (under 600 px wide, or short landscape): nav links and the top-right button are replaced by the burger menu, the toolbar becomes two rows with the model label left and attach/send on the right, no horizontal scrolling
 - [x] The burger menu opens and closes without JavaScript and shows the nav links and the button
 - [x] The entrance animation plays once on first load in the specified order, never loops, and its helper class is removed afterwards
