@@ -12,7 +12,7 @@ npm run eval                                           # 13 automatic checks, ~1
 npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
 
-The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control.
+The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control. It only answers requests addressed to localhost, and the README is served at /readme.
 
 ## 1. Architecture
 
@@ -25,7 +25,7 @@ flowchart LR
     D[HR documents] -->|chunk + embed| V
 ```
 
-**How the agent picks:** the model sees three tools and chooses one per step. Questions about *rules* go to document search, questions about *a person's data* go to MCP, and some need both ("my leave balance and the carry-over rule"). If the documents have no answer, it says "tidak tahu" instead of guessing.
+**How the agent picks:** the model sees three tools and chooses one per step. Questions about *rules* go to document search, questions about *a person's data* go to MCP, and some need both ("my leave balance and the carry-over rule"). If the documents have no answer, it gives one fixed, polite reply ("the information is not in the HR policy documents, please contact the HR team") instead of guessing. The harness enforces this: when the document search finds nothing and no HR data backs the answer, whatever the model wrote is replaced by that reply.
 
 | Part | Choice | Why |
 |---|---|---|
@@ -43,20 +43,20 @@ flowchart LR
 ## 2. Trade-offs
 
 - **Chunk = 800 characters, 100 overlap, cut at headings.** Each policy section is short and holds one rule with its numbers. Bigger chunks mix rules together; smaller ones split a rule from its exception. Cost: a little repeated text.
-- **Search must score above 0.59 to count.** I measured it: right sections scored 0.62-0.75, off-topic questions at most 0.56. I prefer a wrong "I don't know" over a confident wrong answer in HR. Cost: the gap is narrow, so re-measure on the real 200-page corpus.
+- **Search must score above 0.59 to count.** I measured it: right sections scored 0.62-0.75, off-topic questions at most 0.56. I prefer a wrongly polite "not covered" over a confident wrong answer in HR. Cost: the gap is narrow, so re-measure on the real 200-page corpus.
 - **LanceDB now, pgvector later.** LanceDB needs no setup for a demo. In production pgvector keeps vectors next to existing data, with access control and backups.
 - **Small local model.** Private and free, but careless: it skipped searching, compared numbers wrongly, and stopped searching once chat history was replayed (0/5 right, versus 5/5 when history is a short note). The harness fixed each one, so a bigger model is an upgrade, not a requirement.
 - **Document search is a tool the model chooses**, not always-on. It saves a search for pure data questions. Cost: the model sometimes skips it, hence the forced search.
 
 ## 3. Evaluation
 
-**Today:** `npm run eval` runs 13 checks (right section found, right fact, right tool, "tidak tahu" for out-of-scope questions, access blocked). All pass, and it fails when I loosen the guardrail on purpose. It is a small smoke test, not a benchmark.
+**Today:** `npm run eval` runs 13 checks (right section found, right fact, right tool, the polite not-covered reply, flagged by the harness, for out-of-scope questions, access blocked). All pass, and it fails when I loosen the guardrail on purpose. It is a small smoke test, not a benchmark.
 
 **What I would add for production:**
 1. **Retrieval quality:** is the right passage in the top results? (recall@k, MRR on a few hundred labelled questions.)
 2. **Groundedness:** a judge model checks every claim is backed by the retrieved text.
 3. **Correctness:** HR-reviewed question/answer pairs, scored on facts, numbers and dates.
-4. **Saying "I don't know" correctly:** how often it answers confidently when it should refuse (the key safety number).
+4. **Declining correctly:** how often it answers confidently when it should refuse (the key safety number).
 5. **Tool use and safety:** right tool and arguments, plus a red team trying to read other people's data (target: zero leaks).
 6. **Always running:** run all of this in CI on every prompt, model or document change, and track thumbs up/down, "asked HR anyway", and unanswered questions in production.
 

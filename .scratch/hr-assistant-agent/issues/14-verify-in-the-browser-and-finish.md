@@ -23,3 +23,15 @@
 - **Open decision for the user:** the typed question uses the design's 9.97u font size (about 10 to 12 px on a laptop). It matches the reference but is small for a live demo. Raising it to a minimum of 13 px is a one-line change; it was left as specified.
 - **Process notes:** restarting the dev server needs the old process stopped first (the new one exits with "port in use" and the old one keeps serving stale code), and a test that reported a burger-menu failure turned out to be a script-click artifact, so interaction checks use real mouse and key events.
 - **Final state:** typecheck clean, 94 of 94 tests pass, eval 13 of 13, README gained two lines about `npm run ui`.
+
+## Post-review fixes
+
+A review of the UI work (tickets 09 to 14) found the items below; all are fixed and checked.
+
+- **Polite, structured not-covered reply.** The refusal "Maaf, saya tidak tahu..." is replaced by one fixed reply: "Mohon maaf, informasi tersebut tidak tercantum dalam dokumen kebijakan HR yang tersedia. Silakan hubungi tim HR untuk informasi lebih lanjut." The harness now guarantees it: if the policy search found nothing relevant and no HR data backs the answer, whatever the model wrote is replaced by that reply, and the run is flagged `notCovered` (also when the model itself gives the reply). The badge no longer depends on the wording of the answer (it used to match the phrase with a regular expression); it reads the flag and is called "Not in documents". Covered by 6 harness tests, 3 summary tests and two eval cases that check the wording, the absence of "tidak tahu" and the flag.
+- **DNS rebinding.** The server answered any `Host` header. It now returns 403 unless the host is localhost, 127.0.0.1 or [::1] (tested, and checked with curl against the running server: three foreign hosts got 403, local ones 200).
+- **Dead links.** The page linked to the private GitHub repository (404 for anyone without access). "How it works", Architecture and Docs now open the README served locally at `/readme` as plain text.
+- **Footer claim.** "Runs entirely on this machine" became "Models and data stay on this machine", because the page itself loads a video and fonts from the internet.
+- **Phone footer overlap.** At 375x667 with the menu open the footer overlapped the bottom of the card by about 26 px; it now steps aside while the menu is open (card bottom 647 of 667, no overlap).
+- **Module boundary.** The demo UI no longer imports the HR data module: who the demo employees are lives in its own directory module, and the HR facts (manager, leave balance) are joined to it inside the MCP server's data file.
+- **Not changed on purpose:** the long `createTurn` function and the repeated media-query rules (refactors without behaviour change), and the small question font, which still waits for a decision.

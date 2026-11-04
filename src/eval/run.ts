@@ -39,6 +39,9 @@ async function runAgentCase(
   }
   if (c.expectBlocked && r.blocked.length === 0) failures.push("expected an authorization block");
   if (c.expectNotBlocked && r.blocked.length > 0) failures.push("unexpected authorization block");
+  if (c.expectNotCovered !== undefined && r.notCovered !== c.expectNotCovered) {
+    failures.push(`expected notCovered=${c.expectNotCovered}, got ${r.notCovered}`);
+  }
   if (failures.length > 0) failures.push(`answer was: ${r.answer.replace(/\s+/g, " ").slice(0, 200)}`);
   return failures;
 }

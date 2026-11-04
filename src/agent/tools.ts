@@ -29,7 +29,7 @@ export async function runSearchPolicy(args: Record<string, unknown>): Promise<st
   if (relevant.length === 0) {
     return JSON.stringify({
       found: false,
-      message: "No relevant passages found in the HR documents. Tell the user you do not know.",
+      message: "No relevant passages found in the HR documents. Reply with the fixed not-covered message from your rules.",
       best_similarity: all[0]?.similarity ?? 0,
     });
   }

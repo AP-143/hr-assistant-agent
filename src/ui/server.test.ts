@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, it } from "node:test";
 import type { RunResult } from "../agent/harness.js";
@@ -12,6 +13,7 @@ const okResult: RunResult = {
   blocked: [],
   hitIterationLimit: false,
   forcedRetrieval: false,
+  notCovered: false,
 };
 
 const parseSse = (text: string) =>
@@ -35,6 +37,7 @@ describe("demo UI server", () => {
       run,
       model: "test-model",
       html: async () => "<!doctype html><html><head><title>HR Assistant</title></head><body></body></html>",
+      readme: async () => "# HR Assistant Agent\n\nA chatbot for HR questions.\n",
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     open.push(
@@ -200,6 +203,42 @@ describe("demo UI server", () => {
     const next = await post(base, valid);
     assert.equal(next.status, 200);
     assert.equal(parseSse(await next.text()).at(-1)?.event, "done");
+  });
+
+  describe("only answers requests addressed to this machine", () => {
+    // fetch() cannot forge a Host header, so use a raw request like a rebinding page would produce.
+    const withHost = (base: string, host: string | undefined, path = "/api/info") =>
+      new Promise<number>((resolve, reject) => {
+        const { port } = new URL(base);
+        const req = http.request({ host: "127.0.0.1", port, path, headers: host ? { Host: host } : {} }, (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        });
+        req.on("error", reject);
+        req.end();
+      });
+
+    it("rejects a Host header that is not localhost (DNS rebinding)", async () => {
+      const base = await start(instant);
+      assert.equal(await withHost(base, "evil.example"), 403);
+      assert.equal(await withHost(base, "evil.example:4310", "/"), 403);
+      assert.equal(await withHost(base, "localhost.evil.example"), 403);
+    });
+
+    it("accepts localhost, 127.0.0.1 and ::1 on any port", async () => {
+      const base = await start(instant);
+      for (const host of ["localhost:4310", "localhost", "127.0.0.1:4310", "[::1]:4310"]) {
+        assert.equal(await withHost(base, host), 200, host);
+      }
+    });
+  });
+
+  it("serves the README as plain text so the page links work without GitHub access", async () => {
+    const base = await start(instant);
+    const res = await fetch(`${base}/readme`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
+    assert.match(await res.text(), /^# HR Assistant Agent/);
   });
 
   it("returns 404 for unknown paths and 405 for the wrong method", async () => {

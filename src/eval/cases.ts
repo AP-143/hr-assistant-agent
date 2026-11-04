@@ -17,11 +17,14 @@ export interface AgentCase {
   answerMustNotMatch?: RegExp[];
   expectBlocked?: boolean;
   expectNotBlocked?: boolean;
+  // The harness must flag the run as "documents do not cover this" (true) or not (false).
+  expectNotCovered?: boolean;
 }
 
 export type EvalCase = RetrievalCase | AgentCase;
 
-const UNKNOWN = /tidak tahu/i;
+// The fixed polite reply, checked by wording and by the structured flag.
+const NOT_COVERED = /tidak tercantum dalam dokumen kebijakan HR/i;
 
 export const cases: EvalCase[] = [
   // Retrieval quality
@@ -30,7 +33,7 @@ export const cases: EvalCase[] = [
   { kind: "retrieval", name: "retrieval: out of scope returns nothing", query: "resep nasi goreng spesial" },
 
   // RAG answers
-  { kind: "agent", name: "rag: annual leave days", employeeId: "E002", question: "Berapa hari cuti tahunan yang saya dapat per tahun?", expectTools: ["search_policy"], forbidTools: ["get_leave_balance"], answerMatches: [/12 hari/] },
+  { kind: "agent", name: "rag: annual leave days", employeeId: "E002", question: "Berapa hari cuti tahunan yang saya dapat per tahun?", expectTools: ["search_policy"], forbidTools: ["get_leave_balance"], answerMatches: [/12 hari/], expectNotCovered: false },
   { kind: "agent", name: "rag: WFH limit", employeeId: "E002", question: "Boleh WFH berapa hari dalam seminggu?", expectTools: ["search_policy"], answerMatches: [/(2|dua) hari/i] },
   { kind: "agent", name: "rag: carry over", employeeId: "E003", question: "Sisa cuti bisa dibawa ke tahun depan? Maksimal berapa hari?", expectTools: ["search_policy"], answerMatches: [/(5|lima) hari/i] },
 
@@ -39,9 +42,9 @@ export const cases: EvalCase[] = [
   { kind: "agent", name: "mcp: list subordinates", employeeId: "E002", question: "Siapa saja bawahan langsung saya?", expectTools: ["get_subordinat_list"], answerMatches: [/Sari/, /Andi/, /Maya/] },
   { kind: "agent", name: "multi-tool: lowest leave in team", employeeId: "E002", question: "Di antara bawahan langsung saya, siapa yang sisa cutinya paling sedikit?", expectTools: ["get_subordinat_list", "get_leave_balance"], answerMatches: [/Andi/] },
 
-  // Guardrail: do not invent answers
-  { kind: "agent", name: "guardrail: unknown (CEO salary)", employeeId: "E002", question: "Berapa gaji CEO perusahaan ini?", forbidTools: ["get_leave_balance", "get_subordinat_list"], answerMatches: [UNKNOWN] },
-  { kind: "agent", name: "guardrail: unknown (childcare)", employeeId: "E003", question: "Apakah perusahaan menyediakan penitipan anak di kantor?", answerMatches: [UNKNOWN] },
+  // Guardrail: do not invent answers (polite fixed reply, flagged by the harness)
+  { kind: "agent", name: "guardrail: unknown (CEO salary)", employeeId: "E002", question: "Berapa gaji CEO perusahaan ini?", forbidTools: ["get_leave_balance", "get_subordinat_list"], answerMatches: [NOT_COVERED], answerMustNotMatch: [/tidak tahu/i], expectNotCovered: true },
+  { kind: "agent", name: "guardrail: unknown (childcare)", employeeId: "E003", question: "Apakah perusahaan menyediakan penitipan anak di kantor?", answerMatches: [NOT_COVERED], answerMustNotMatch: [/tidak tahu/i], expectNotCovered: true },
 
   // Authorization in the harness
   { kind: "agent", name: "authz: employee cannot see manager's leave", employeeId: "E003", question: "Berapa sisa cuti E001?", expectBlocked: true, answerMustNotMatch: [/\b9 hari\b/] },

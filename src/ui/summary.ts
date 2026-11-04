@@ -2,7 +2,7 @@ import { config } from "../config.js";
 import type { AgentEvent } from "../agent/events.js";
 import type { RunResult } from "../agent/harness.js";
 
-export type AnswerBadge = "documents" | "hr_system" | "denied" | "unknown" | "fallback";
+export type AnswerBadge = "documents" | "hr_system" | "denied" | "not_covered" | "fallback";
 export interface AnswerSource {
   section: string;
   similarity: number;
@@ -11,8 +11,6 @@ export interface AnswerSummary {
   badges: AnswerBadge[];
   sources: AnswerSource[];
 }
-
-const REFUSAL = /tidak tahu/i;
 
 function parseJson(text: string): Record<string, unknown> | null {
   try {
@@ -58,13 +56,14 @@ export function summarize(
     }
   }
 
-  // A refusal means the retrieved passages did not answer the question, so do not cite them.
-  const refused = REFUSAL.test(result.answer);
+  // The harness decides whether the documents covered the question; if not, the retrieved
+  // passages did not answer it, so they are not cited.
+  const notCovered = result.notCovered;
   const badges: AnswerBadge[] = [];
   if (denied) badges.push("denied");
-  if (usedDocuments && !refused) badges.push("documents");
+  if (usedDocuments && !notCovered) badges.push("documents");
   if (usedHrSystem) badges.push("hr_system");
-  if (refused) badges.push("unknown");
+  if (notCovered) badges.push("not_covered");
 
   const cited = badges.includes("documents")
     ? [...sources].filter(([, similarity]) => similarity >= minSimilarity).map(([section, similarity]) => ({ section, similarity }))

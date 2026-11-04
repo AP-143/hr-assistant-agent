@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { NOT_COVERED_REPLY } from "./grounding.js";
 import { isSmallTalk, runAgent } from "./harness.js";
 import type { ChatMessage, ToolSpec } from "./llm.js";
 import { McpToolClient } from "./mcpClient.js";
@@ -166,6 +167,90 @@ describe("agent harness", () => {
     assert.match(seen[1].content, /Maksimal 2 hari per minggu\./);
     assert.match(seen[1].content, /not evidence/i);
     assert.equal(seen[2].content, "halo");
+  });
+
+  describe("not-covered guarantee", () => {
+    const call = (name: string, args: Record<string, unknown>): ChatMessage => ({
+      role: "assistant",
+      content: "",
+      tool_calls: [{ function: { name, arguments: args } }],
+    });
+    // Calls one search, then gives `answer` once it has seen a tool result.
+    const searchThen = (query: string, answer: string) => async (messages: ChatMessage[]) =>
+      hasToolResult(messages) ? reply(answer) : call("search_policy", { query });
+
+    it("replaces an invented answer with the fixed polite reply when the documents had nothing", async () => {
+      const result = await runAgent({
+        question: "Berapa gaji CEO perusahaan ini?",
+        employeeId: "E002",
+        mcp,
+        tools,
+        llm: searchThen("resep nasi goreng spesial", "Gaji CEO adalah Rp 100 juta per bulan."),
+      });
+
+      assert.equal(result.answer, NOT_COVERED_REPLY);
+      assert.equal(result.notCovered, true);
+      assert.doesNotMatch(result.answer, /tidak tahu/i);
+    });
+
+    it("keeps the model's answer when the documents had it", async () => {
+      const result = await runAgent({
+        question: "Boleh WFH berapa hari seminggu?",
+        employeeId: "E002",
+        mcp,
+        tools,
+        llm: searchThen("aturan WFH per minggu", "Maksimal 2 hari per minggu."),
+      });
+
+      assert.equal(result.answer, "Maksimal 2 hari per minggu.");
+      assert.equal(result.notCovered, false);
+    });
+
+    it("keeps the answer when HR data was found, even if the policy search came back empty", async () => {
+      let step = 0;
+      const llm = async (messages: ChatMessage[]) => {
+        step += 1;
+        if (step === 1) return call("get_leave_balance", { employee_id: "E002" });
+        if (step === 2) return call("search_policy", { query: "resep nasi goreng spesial" });
+        return reply("Sisa cuti Anda 7 hari.");
+      };
+      const result = await runAgent({ question: "Sisa cuti saya dan aturan masakan?", employeeId: "E002", mcp, tools, llm });
+
+      assert.equal(result.answer, "Sisa cuti Anda 7 hari.");
+      assert.equal(result.notCovered, false);
+    });
+
+    it("does not override an access-denied answer", async () => {
+      let step = 0;
+      const llm = async () => {
+        step += 1;
+        if (step === 1) return call("get_leave_balance", { employee_id: "E001" });
+        if (step === 2) return call("search_policy", { query: "resep nasi goreng spesial" });
+        return reply("Anda tidak memiliki akses untuk data tersebut.");
+      };
+      const result = await runAgent({ question: "Sisa cuti E001?", employeeId: "E003", mcp, tools, llm });
+
+      assert.equal(result.answer, "Anda tidak memiliki akses untuk data tersebut.");
+      assert.equal(result.notCovered, false);
+    });
+
+    it("flags the run when the model itself gives the fixed reply, and keeps its text", async () => {
+      const result = await runAgent({
+        question: "Apakah ada tunjangan kesehatan?",
+        employeeId: "E002",
+        mcp,
+        tools,
+        llm: searchThen("tunjangan kesehatan", NOT_COVERED_REPLY),
+      });
+
+      assert.equal(result.answer, NOT_COVERED_REPLY);
+      assert.equal(result.notCovered, true);
+    });
+
+    it("never flags small talk", async () => {
+      const result = await runAgent({ question: "halo", employeeId: "E002", mcp, tools, llm: async () => reply("Halo!") });
+      assert.equal(result.notCovered, false);
+    });
   });
 
   it("does not force a search for small talk", async () => {

@@ -271,7 +271,7 @@ img, svg { display: block; }
 .tag.documents, .badge.documents { color: #8fe0ae; background: rgba(80, 200, 130, .15); }
 .tag.hr_system, .badge.hr_system { color: #93bdff; background: rgba(90, 150, 255, .15); }
 .tag.blocked, .badge.denied { color: #ff9a92; background: rgba(255, 105, 95, .16); }
-.tag.warn, .badge.unknown { color: #f3d37e; background: rgba(240, 195, 80, .15); }
+.tag.warn, .badge.not_covered { color: #f3d37e; background: rgba(240, 195, 80, .15); }
 .tag.note, .badge.fallback { color: #c0c1c6; background: rgba(255, 255, 255, .10); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5em .6em; margin-top: .85em; }
 .meta:empty { display: none; }
@@ -430,6 +430,7 @@ img, svg { display: block; }
   .menu button { font-size: 14px; }
   .thread { width: 100%; max-width: 600px; margin-right: 0; }
   .proof { gap: 18px; }
+  #menu:checked ~ .proof { opacity: 0; max-height: 0; overflow: hidden; pointer-events: none; }
   .proof p { font-size: 13px; }
   .stack { gap: 26px; }
   .stack span { font-size: 16px; }
@@ -464,10 +465,10 @@ img, svg { display: block; }
       <nav class="links" aria-label="Primary">
         <a href="#">Chat</a>
         <a href="#" id="nav-examples">Examples</a>
-        <a href="https://github.com/AP-143/hr-assistant-agent#1-architecture" target="_blank" rel="noopener">Architecture</a>
-        <a href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">Docs</a>
+        <a href="/readme" target="_blank" rel="noopener">Architecture</a>
+        <a href="/readme" target="_blank" rel="noopener">Docs</a>
       </nav>
-      <a class="cta" href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener"><span>How it works</span></a>
+      <a class="cta" href="/readme" target="_blank" rel="noopener"><span>How it works</span></a>
       <label class="burger" id="burger" for="menu" role="button" tabindex="0" aria-label="Menu" aria-controls="sheet" aria-expanded="false">
         <svg width="17" height="12" viewBox="0 0 17 12" fill="none" aria-hidden="true"><path d="M0 1h17M0 11h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </label>
@@ -477,9 +478,9 @@ img, svg { display: block; }
         <div class="sheet-panel">
           <a href="#">Chat</a>
           <a href="#" id="sheet-examples">Examples</a>
-          <a href="https://github.com/AP-143/hr-assistant-agent#1-architecture" target="_blank" rel="noopener">Architecture</a>
-          <a href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">Docs</a>
-          <a class="sheet-cta" href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">How it works</a>
+          <a href="/readme" target="_blank" rel="noopener">Architecture</a>
+          <a href="/readme" target="_blank" rel="noopener">Docs</a>
+          <a class="sheet-cta" href="/readme" target="_blank" rel="noopener">How it works</a>
         </div>
       </div>
     </div>
@@ -530,7 +531,7 @@ img, svg { display: block; }
     </main>
 
     <footer class="proof">
-      <p>Runs entirely on this machine</p>
+      <p>Models and data stay on this machine</p>
       <div class="stack"><span>Ollama</span><span>MCP</span><span>LanceDB</span></div>
     </footer>
   </div>
@@ -547,7 +548,7 @@ img, svg { display: block; }
     ["My team", "Siapa saja bawahan langsung saya?"],
     ["Team compare", "Di antara bawahan langsung saya, siapa yang sisa cutinya paling sedikit?"],
     ["Data + policy", "Sisa cuti saya berapa hari, dan apa aturan carry over-nya?"],
-    ["Unknown", "Berapa gaji CEO perusahaan ini?"],
+    ["Not covered", "Berapa gaji CEO perusahaan ini?"],
     ["Forbidden", "Berapa sisa cuti E001?"],
   ];
   const frame = document.getElementById("frame");
@@ -597,7 +598,7 @@ img, svg { display: block; }
     documents: "From documents",
     hr_system: "From HR system",
     denied: "Access denied",
-    unknown: "Don't know",
+    not_covered: "Not in documents",
     fallback: "Safety fallback",
   };
   const shortSection = (heading) => heading.split(" > ").pop();

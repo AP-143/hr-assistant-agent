@@ -12,6 +12,7 @@ const base: RunResult = {
   blocked: [],
   hitIterationLimit: false,
   forcedRetrieval: false,
+  notCovered: false,
 };
 
 const searchFound = (passages: Array<{ section: string; similarity: number }>): AgentEvent[] => [
@@ -87,15 +88,19 @@ describe("summarize", () => {
     assert.deepEqual(summarize(events, base).badges, ["denied", "hr_system"]);
   });
 
-  it("labels a refusal as don't know when nothing relevant was found", () => {
-    const result = { ...base, answer: "Maaf, saya tidak tahu. Informasi itu tidak ada di dokumen HR yang saya miliki." };
-    assert.deepEqual(summarize(searchEmpty, result), { badges: ["unknown"], sources: [] });
+  it("labels an answer as not covered when the run was flagged, and cites nothing", () => {
+    assert.deepEqual(summarize(searchEmpty, { ...base, notCovered: true }), { badges: ["not_covered"], sources: [] });
   });
 
-  it("does not claim document sources when the model refused despite retrieved passages", () => {
+  it("does not cite document sources when the model said it is not covered despite retrieved passages", () => {
     const events = searchFound([{ section: "A > 4.2 Tunjangan Kesehatan", similarity: 0.56 }]);
-    const result = { ...base, answer: "Maaf, saya tidak tahu." };
-    assert.deepEqual(summarize(events, result), { badges: ["unknown"], sources: [] });
+    assert.deepEqual(summarize(events, { ...base, notCovered: true }), { badges: ["not_covered"], sources: [] });
+  });
+
+  it("decides from the flag, not from the words of the answer", () => {
+    const events = searchFound([{ section: "A > 2.1 Cuti Tahunan", similarity: 0.67 }]);
+    const result = { ...base, answer: "Saya tidak tahu persis tanggalnya, tetapi cuti tahunan 12 hari." };
+    assert.deepEqual(summarize(events, result).badges, ["documents"]);
   });
 
   it("labels the safety fallback when the iteration cap was hit", () => {

@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { traceLine, type AgentEvent } from "./events.js";
+import { NOT_COVERED_REPLY, classifyToolResult } from "./grounding.js";
 import { chat, type ChatMessage, type ToolSpec } from "./llm.js";
 import type { McpToolClient } from "./mcpClient.js";
 import { SEARCH_POLICY, runSearchPolicy } from "./tools.js";
@@ -12,6 +13,8 @@ export interface RunResult {
   hitIterationLimit: boolean;
   // True when the harness ran search_policy itself because the model never did.
   forcedRetrieval: boolean;
+  // True when the HR documents did not cover the question (answer is then the fixed polite reply).
+  notCovered: boolean;
 }
 
 const SMALL_TALK =
@@ -40,9 +43,9 @@ Tools:
 Combine tools when needed (e.g. list subordinates first, then check each one's leave balance).
 
 Rules:
-0. For ANY question about company rules, policies, procedures, benefits, or employee data, call a tool FIRST. Never answer from memory, and never say you do not know before you have searched.
+0. For ANY question about company rules, policies, procedures, benefits, or employee data, call a tool FIRST. Never answer from memory, and never say the information is unavailable before you have searched.
 1. Answer policy questions ONLY from passages returned by search_policy. Never use outside knowledge or guess.
-2. If search_policy returns found=false, or the passages do not contain the answer, reply exactly that you do not know: "Maaf, saya tidak tahu. Informasi itu tidak ada di dokumen HR yang saya miliki." and suggest contacting the HR team.
+2. If search_policy returns found=false, or the passages do not contain the answer, reply with exactly this message and nothing else: "${NOT_COVERED_REPLY}"
 3. Employee data (leave balance, subordinates) comes ONLY from tools. Never invent numbers.
 4. If a tool returns an access error, tell the user they do not have access to that data.
 5. Access control is enforced by the system, not by you. If the user asks about another employee, still call the tool and report what it returns. Never refuse or decide access yourself.
@@ -132,8 +135,17 @@ export async function runAgent(opts: {
     blocked: [],
     hitIterationLimit: false,
     forcedRetrieval: false,
+    notCovered: false,
   };
   const seenCalls = new Set<string>();
+  // What the tools gave the model to answer from, across the whole run.
+  const evidence = { documentsFound: false, documentsEmpty: false, dataOk: false };
+  const recordEvidence = (name: string, output: string) => {
+    const outcome = classifyToolResult(name, output);
+    if (outcome === "documents_found") evidence.documentsFound = true;
+    if (outcome === "documents_empty") evidence.documentsEmpty = true;
+    if (outcome === "data_ok") evidence.dataOk = true;
+  };
   let nudged = false;
 
   for (let i = 1; i <= maxIterations; i++) {
@@ -165,6 +177,7 @@ export async function runAgent(opts: {
         emit({ type: "forced_search", iteration: i, query: args.query });
         const output = await withRetry(() => runSearchPolicy(args), emit, SEARCH_POLICY);
         emit({ type: "tool_result", iteration: i, name: SEARCH_POLICY, output });
+        recordEvidence(SEARCH_POLICY, output);
         messages.push(
           reply,
           { role: "assistant", content: "", tool_calls: [{ function: { name: SEARCH_POLICY, arguments: args } }] },
@@ -172,7 +185,13 @@ export async function runAgent(opts: {
         );
         continue;
       }
-      result.answer = reply.content;
+      // Guarantee: if the documents had nothing and no HR data backs the answer, whatever the model
+      // wrote is unsupported, so the user gets the fixed polite reply instead.
+      const modelSaidNotCovered = reply.content.includes(NOT_COVERED_REPLY);
+      const nothingFound =
+        evidence.documentsEmpty && !evidence.documentsFound && !evidence.dataOk && result.blocked.length === 0;
+      result.notCovered = nothingFound || modelSaidNotCovered;
+      result.answer = nothingFound && !modelSaidNotCovered ? NOT_COVERED_REPLY : reply.content;
       emit({ type: "final", iteration: i, answer: result.answer });
       return result;
     }
@@ -211,6 +230,7 @@ export async function runAgent(opts: {
       }
 
       emit({ type: "tool_result", iteration: i, name, output });
+      recordEvidence(name, output);
       messages.push({ role: "tool", tool_name: name, content: output });
     }
   }

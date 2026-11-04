@@ -5,9 +5,7 @@ import { config } from "../config.js";
 import type { AgentEvent } from "../agent/events.js";
 import type { RunResult } from "../agent/harness.js";
 import type { ChatMessage } from "../agent/llm.js";
-// Only used to check that the employee ID the page sends is one of the demo users. This is
-// the "login directory"; the agent itself still reaches HR data only through MCP.
-import { employees as demoEmployees, findEmployee } from "../mcp-server/data.js";
+import { directory, findInDirectory } from "../directory.js";
 import { summarize } from "./summary.js";
 
 export type AgentRunner = (
@@ -60,7 +58,7 @@ function parseChatRequest(raw: string): { question: string; employeeId: string; 
   if (question.trim().length > MAX_QUESTION_CHARS) {
     throw new HttpError(400, `question must be at most ${MAX_QUESTION_CHARS} characters`);
   }
-  if (typeof employeeId !== "string" || !findEmployee(employeeId)) throw new HttpError(400, "unknown employeeId");
+  if (typeof employeeId !== "string" || !findInDirectory(employeeId)) throw new HttpError(400, "unknown employeeId");
   if (!Array.isArray(history) || history.length > MAX_HISTORY_ITEMS) {
     throw new HttpError(400, `history must be a list of at most ${MAX_HISTORY_ITEMS} messages`);
   }
@@ -76,12 +74,25 @@ function parseChatRequest(raw: string): { question: string; employeeId: string; 
   return { question: question.trim(), employeeId, history: cleanHistory };
 }
 
+// The page may only be reached as localhost. Binding to 127.0.0.1 is not enough on its own: a
+// malicious site can point its own domain at 127.0.0.1 (DNS rebinding) and then talk to us as
+// if it were the page. Such requests carry the attacker's domain in the Host header.
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function isLocalHost(hostHeader: string | undefined): boolean {
+  if (!hostHeader) return false;
+  const hostname = hostHeader.startsWith("[") ? hostHeader.slice(0, hostHeader.indexOf("]") + 1) : hostHeader.split(":")[0];
+  return LOCAL_HOSTNAMES.has(hostname.toLowerCase());
+}
+
 export function createUiServer(deps: {
   run: AgentRunner;
   model: string;
   html?: () => Promise<string>;
+  readme?: () => Promise<string>;
 }): http.Server {
   const loadHtml = deps.html ?? (() => fs.readFile(path.join(config.root, "src", "ui", "index.html"), "utf8"));
+  const loadReadme = deps.readme ?? (() => fs.readFile(path.join(config.root, "README.md"), "utf8"));
   // One local model, so one question at a time.
   let busy = false;
 
@@ -118,17 +129,20 @@ export function createUiServer(deps: {
   }
 
   async function handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (!isLocalHost(req.headers.host)) throw new HttpError(403, "Host not allowed");
     const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
 
-    if (pathname === "/" || pathname === "/index.html") {
+    if (pathname === "/readme") {
+      if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" });
+      res.end(await loadReadme());
+    } else if (pathname === "/" || pathname === "/index.html") {
       if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
       res.end(await loadHtml());
     } else if (pathname === "/api/info") {
       if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
-      // Who can be picked in the page. Identity only: no leave balances, no reporting lines.
-      const employees = demoEmployees.map(({ id, name, title }) => ({ id, name, title }));
-      sendJson(res, 200, { model: deps.model, employees });
+      sendJson(res, 200, { model: deps.model, employees: directory });
     } else if (pathname === "/api/chat") {
       if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
       await chat(req, res);
