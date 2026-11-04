@@ -9,6 +9,15 @@ export interface RunResult {
   toolsCalled: string[];
   blocked: string[];
   hitIterationLimit: boolean;
+  // True when the harness ran search_policy itself because the model never did.
+  forcedRetrieval: boolean;
+}
+
+const SMALL_TALK =
+  /^\s*(halo|hai|hi|hello|pagi|siang|sore|malam|selamat\s+\w+|terima\s*kasih|makasih|thanks|thank you|ok|oke|sip)(\s+(ya|yaa|banyak|kak|pak|bu))?\W*$/i;
+
+export function isSmallTalk(text: string): boolean {
+  return SMALL_TALK.test(text);
 }
 
 export type TraceFn = (line: string) => void;
@@ -19,7 +28,7 @@ const NUDGE =
   "Reminder: if this question needs company information (policy, leave, team), call a tool first instead of answering from memory. If it is only a greeting or small talk, answer directly.";
 
 function systemPrompt(employeeId: string): string {
-  return `You are the internal HR assistant of the company. Always answer in Indonesian, short and clear.
+  return `You are the internal HR assistant of the company. Always answer in Indonesian, short and clear, and address the user as "Anda" (you are the assistant, not the employee).
 The user is employee ${employeeId}. When they say "saya" or "my", use employee_id ${employeeId}.
 
 Tools:
@@ -29,6 +38,7 @@ Tools:
 Combine tools when needed (e.g. list subordinates first, then check each one's leave balance).
 
 Rules:
+0. For ANY question about company rules, policies, procedures, benefits, or employee data, call a tool FIRST. Never answer from memory, and never say you do not know before you have searched.
 1. Answer policy questions ONLY from passages returned by search_policy. Never use outside knowledge or guess.
 2. If search_policy returns found=false, or the passages do not contain the answer, reply exactly that you do not know: "Maaf, saya tidak tahu. Informasi itu tidak ada di dokumen HR yang saya miliki." and suggest contacting the HR team.
 3. Employee data (leave balance, subordinates) comes ONLY from tools. Never invent numbers.
@@ -75,9 +85,12 @@ export async function runAgent(opts: {
   tools: ToolSpec[];
   history?: ChatMessage[];
   trace?: TraceFn;
+  // Injectable so the loop can be tested with a scripted model.
+  llm?: (messages: ChatMessage[], tools: ToolSpec[]) => Promise<ChatMessage>;
 }): Promise<RunResult> {
   const { question, employeeId, mcp, tools } = opts;
   const trace = opts.trace ?? (() => {});
+  const llm = opts.llm ?? chat;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt(employeeId) },
@@ -85,21 +98,48 @@ export async function runAgent(opts: {
     { role: "user", content: question },
   ];
 
-  const result: RunResult = { answer: "", iterations: 0, toolsCalled: [], blocked: [], hitIterationLimit: false };
+  const result: RunResult = {
+    answer: "",
+    iterations: 0,
+    toolsCalled: [],
+    blocked: [],
+    hitIterationLimit: false,
+    forcedRetrieval: false,
+  };
   const seenCalls = new Set<string>();
   let nudged = false;
 
   for (let i = 1; i <= config.maxIterations; i++) {
     result.iterations = i;
-    const reply = await withRetry(() => chat(messages, tools), trace, "llm");
+    const reply = await withRetry(() => llm(messages, tools), trace, "llm");
     const calls = reply.tool_calls ?? [];
 
     if (calls.length === 0) {
-      // Grounding check: no evidence gathered yet, so push the model toward a tool once.
-      if (result.toolsCalled.length === 0 && !nudged) {
+      const ungrounded = result.toolsCalled.length === 0 && !isSmallTalk(question);
+      // Grounding check, step 1: no evidence gathered yet, so push the model toward a tool once.
+      if (ungrounded && !nudged) {
         nudged = true;
         trace(`[${i}] answered without any tool -> nudging once`);
         messages.push(reply, { role: "user", content: NUDGE });
+        continue;
+      }
+      // Step 2: the model ignored the nudge. Small models like to say "tidak tahu" without
+      // looking, so the harness runs the document search itself and feeds the result back.
+      if (ungrounded && !result.forcedRetrieval && i < config.maxIterations) {
+        result.forcedRetrieval = true;
+        result.toolsCalled.push(SEARCH_POLICY);
+        // A follow-up like "kalau begitu hari apa saja?" has no topic of its own, so
+        // prepend the previous user question to give the retriever something to match.
+        const previousQuestion = [...(opts.history ?? [])].reverse().find((m) => m.role === "user")?.content;
+        const args = { query: previousQuestion ? `${previousQuestion} ${question}` : question };
+        trace(`[${i}] still no tool -> harness runs ${SEARCH_POLICY} ${JSON.stringify(args)}`);
+        const output = await withRetry(() => runSearchPolicy(args), trace, SEARCH_POLICY);
+        trace(`[${i}] tool_result ${output.slice(0, 160)}${output.length > 160 ? "..." : ""}`);
+        messages.push(
+          reply,
+          { role: "assistant", content: "", tool_calls: [{ function: { name: SEARCH_POLICY, arguments: args } }] },
+          { role: "tool", tool_name: SEARCH_POLICY, content: output },
+        );
         continue;
       }
       result.answer = reply.content;

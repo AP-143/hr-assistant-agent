@@ -1,4 +1,4 @@
-import readline from "node:readline/promises";
+import readline from "node:readline";
 import { runAgent } from "./harness.js";
 import type { ChatMessage } from "./llm.js";
 import { McpToolClient } from "./mcpClient.js";
@@ -49,10 +49,18 @@ async function main() {
     }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     console.log(`Logged in as ${employeeId}. Type a question (Ctrl+C to quit).\n`);
-    while (true) {
-      const q = (await rl.question("> ")).trim();
-      if (!q) continue;
-      await ask1(q);
+    let closed = false;
+    rl.on("close", () => (closed = true));
+    const prompt = () => {
+      if (!closed) rl.prompt();
+    };
+    rl.setPrompt("> ");
+    prompt();
+    // Iterating lines (instead of rl.question) keeps piped input intact and ends cleanly at EOF.
+    for await (const line of rl) {
+      const q = line.trim();
+      if (q) await ask1(q);
+      prompt();
     }
   } finally {
     await mcp.close();

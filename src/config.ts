@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const config = {
   root,
   ollamaHost: process.env.OLLAMA_HOST ?? "http://localhost:11434",
-  chatModel: process.env.CHAT_MODEL ?? "qwen3:4b",
+  chatModel: process.env.CHAT_MODEL ?? "qwen3:4b-instruct",
   embedModel: process.env.EMBED_MODEL ?? "bge-m3",
   topK: Number(process.env.TOP_K ?? 4),
   minSimilarity: Number(process.env.MIN_SIMILARITY ?? 0.59),

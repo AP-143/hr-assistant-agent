@@ -34,7 +34,15 @@ export async function chat(messages: ChatMessage[], tools: ToolSpec[]): Promise<
   }
   const data = (await res.json()) as { message: ChatMessage };
   const message = data.message;
-  // Some models still leak <think> blocks into the content.
-  message.content = (message.content ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  message.content = stripReasoning(message.content ?? "");
   return message;
+}
+
+// Thinking models can leak their reasoning into `content`, sometimes with only the
+// closing tag (the opening <think> is injected by the chat template). Keep what follows
+// the last </think>.
+export function stripReasoning(content: string): string {
+  const closing = content.lastIndexOf("</think>");
+  const answer = closing >= 0 ? content.slice(closing + "</think>".length) : content;
+  return answer.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
