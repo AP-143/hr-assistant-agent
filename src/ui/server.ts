@@ -89,10 +89,8 @@ export function createUiServer(deps: {
   run: AgentRunner;
   model: string;
   html?: () => Promise<string>;
-  readme?: () => Promise<string>;
 }): http.Server {
   const loadHtml = deps.html ?? (() => fs.readFile(path.join(config.root, "src", "ui", "index.html"), "utf8"));
-  const loadReadme = deps.readme ?? (() => fs.readFile(path.join(config.root, "README.md"), "utf8"));
   // One local model, so one question at a time.
   let busy = false;
 
@@ -132,11 +130,7 @@ export function createUiServer(deps: {
     if (!isLocalHost(req.headers.host)) throw new HttpError(403, "Host not allowed");
     const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
 
-    if (pathname === "/readme") {
-      if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" });
-      res.end(await loadReadme());
-    } else if (pathname === "/" || pathname === "/index.html") {
+    if (pathname === "/" || pathname === "/index.html") {
       if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
       res.end(await loadHtml());

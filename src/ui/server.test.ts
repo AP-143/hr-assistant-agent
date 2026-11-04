@@ -37,7 +37,6 @@ describe("demo UI server", () => {
       run,
       model: "test-model",
       html: async () => "<!doctype html><html><head><title>HR Assistant</title></head><body></body></html>",
-      readme: async () => "# HR Assistant Agent\n\nA chatbot for HR questions.\n",
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     open.push(
@@ -231,14 +230,6 @@ describe("demo UI server", () => {
         assert.equal(await withHost(base, host), 200, host);
       }
     });
-  });
-
-  it("serves the README as plain text so the page links work without GitHub access", async () => {
-    const base = await start(instant);
-    const res = await fetch(`${base}/readme`);
-    assert.equal(res.status, 200);
-    assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
-    assert.match(await res.text(), /^# HR Assistant Agent/);
   });
 
   it("returns 404 for unknown paths and 405 for the wrong method", async () => {

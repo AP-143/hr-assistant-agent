@@ -12,7 +12,7 @@ npm run eval                                           # 13 automatic checks, ~1
 npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
 
-The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control. It only answers requests addressed to localhost, and the README is served at /readme.
+The browser demo shows the steps and sources behind each answer and lets you switch the asking employee to try the access control. It only answers requests addressed to localhost.
 
 ## 1. Architecture
 
