@@ -282,6 +282,36 @@ img, svg { display: block; }
 }
 .frame.trace-off .steps, .frame.trace-off .sources { display: none; }
 
+/* ---------- menus (who is asking, example questions) and notes ---------- */
+.chip-wrap { position: relative; display: flex; }
+.menu {
+  position: absolute; left: 0; bottom: calc(100% + 10 * var(--u)); z-index: 10;
+  width: max-content; min-width: calc(300 * var(--u)); max-width: calc(520 * var(--u));
+  display: flex; flex-direction: column; padding: calc(6 * var(--u)); border-radius: calc(16 * var(--u));
+  background: rgba(30, 30, 33, .97);
+  -webkit-backdrop-filter: blur(calc(20 * var(--u))); backdrop-filter: blur(calc(20 * var(--u)));
+  box-shadow: inset 0 0 0 1px rgba(214, 228, 255, .14), 0 calc(18 * var(--u)) calc(50 * var(--u)) rgba(0, 0, 0, .45);
+}
+.menu[hidden] { display: none; }
+.menu button {
+  display: flex; align-items: baseline; gap: .8em; text-align: left; white-space: normal;
+  padding: .6em .85em; border-radius: calc(10 * var(--u));
+  font-size: max(13px, calc(13 * var(--u))); line-height: 1.35; color: #e6e6e8;
+}
+.menu button:hover, .menu button:focus-visible { background: rgba(255, 255, 255, .1); outline-offset: -2px; }
+.menu button[aria-checked="true"] { background: rgba(255, 255, 255, .06); }
+.menu .id { flex: none; min-width: 3.1em; font-weight: 560; color: #fff; }
+.menu .sub { color: #9a9ba1; }
+.menu .kind {
+  flex: none; min-width: 6.4em; text-align: center; padding: .1em .55em; border-radius: 999px;
+  font-size: .8em; font-weight: 560; color: #c0c1c6; background: rgba(255, 255, 255, .09);
+}
+.note {
+  align-self: center; max-width: 100%; text-align: center; padding: .35em 1em; border-radius: 999px;
+  font-size: max(12px, calc(12.5 * var(--u))); color: #d0d1d6;
+  background: rgba(0, 0, 0, .38); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -321,14 +351,20 @@ img, svg { display: block; }
                   placeholder="Ask about leave, WFH, reimbursement, or your team..."></textarea>
         <div class="tools">
           <div class="chips">
-            <button type="button" class="chip" style="--cw:107;--pl:12;--ig:3.7">
+            <div class="chip-wrap">
+            <button type="button" class="chip" id="acting-chip" aria-haspopup="true" aria-expanded="false" title="Choose who is asking" style="--cw:107;--pl:12;--ig:3.7">
               <svg viewBox="0 0 16 16" width="15.06" aria-hidden="true" style="width:calc(15.06*var(--u))"><circle cx="8" cy="5" r="3.2"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5z"/></svg>
               <span id="acting-label">Acting as E002</span>
             </button>
-            <button type="button" class="chip" style="--cw:108;--pl:16;--ig:3.9">
+            <div class="menu" id="acting-menu" role="menu" aria-label="Choose who is asking" hidden></div>
+            </div>
+            <div class="chip-wrap">
+            <button type="button" class="chip" id="examples-chip" aria-haspopup="true" aria-expanded="false" title="Ready-made demo questions" style="--cw:108;--pl:16;--ig:3.9">
               <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(11.8*var(--u))"><path d="M1 1.5A1.5 1.5 0 0 1 2.5 0h7A1.5 1.5 0 0 1 11 1.5v5A1.5 1.5 0 0 1 9.5 8H5.2l-2.8 2.6a.5.5 0 0 1-.84-.37V8h-.06A1.5 1.5 0 0 1 1 6.5z"/></svg>
               <span>Examples</span>
             </button>
+            <div class="menu" id="examples-menu" role="menu" aria-label="Example questions" hidden></div>
+            </div>
             <button type="button" class="chip" id="trace-toggle" aria-pressed="true" title="Show or hide the agent's steps" style="--cw:107;--pl:15.8;--ig:2.9">
               <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(12.13*var(--u))"><rect x="0" y="1" width="12" height="2.4" rx="1.2"/><rect x="0" y="4.8" width="8" height="2.4" rx="1.2"/><rect x="0" y="8.6" width="10" height="2.4" rx="1.2"/></svg>
               <span id="trace-label">Trace on</span>
@@ -359,7 +395,18 @@ img, svg { display: block; }
 
 <script>
 (() => {
-  const EMPLOYEE_ID = "E002";
+  // Who is asking. The server sends the real list; E002 (a manager) is the default demo user.
+  let employee = { id: "E002", name: "Budi Santoso", title: "Engineering Manager" };
+  let employees = [employee];
+  const EXAMPLES = [
+    ["Policy", "Boleh WFH berapa hari seminggu?"],
+    ["My leave", "Sisa cuti saya berapa hari?"],
+    ["My team", "Siapa saja bawahan langsung saya?"],
+    ["Team compare", "Di antara bawahan langsung saya, siapa yang sisa cutinya paling sedikit?"],
+    ["Data + policy", "Sisa cuti saya berapa hari, dan apa aturan carry over-nya?"],
+    ["Unknown", "Berapa gaji CEO perusahaan ini?"],
+    ["Forbidden", "Berapa sisa cuti E001?"],
+  ];
   const frame = document.getElementById("frame");
   const thread = document.getElementById("thread");
   const form = document.getElementById("composer");
@@ -368,9 +415,15 @@ img, svg { display: block; }
   let history = [];
   let busy = false;
 
+  const actingLabel = document.getElementById("acting-label");
   fetch("/api/info").then((r) => r.json()).then((info) => {
     document.getElementById("model-name").textContent = info.model;
     document.getElementById("model").title = info.model;
+    if (info.employees?.length) {
+      employees = info.employees;
+      employee = employees.find((e) => e.id === employee.id) ?? employees[0];
+      actingLabel.textContent = `Acting as ${employee.id}`;
+    }
   }).catch(() => {});
 
   const el = (tag, cls, text) => {
@@ -557,7 +610,7 @@ img, svg { display: block; }
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, employeeId: EMPLOYEE_ID, history }),
+        body: JSON.stringify({ question, employeeId: employee.id, history }),
       });
       if (!res.ok) {
         const problem = await res.json().catch(() => ({}));
@@ -574,6 +627,98 @@ img, svg { display: block; }
       prompt.focus();
     }
   }
+
+  // ----- menus: who is asking, example questions -----
+  const menus = [];
+  function closeMenus(returnFocus) {
+    for (const { chip, menu } of menus) {
+      if (menu.hidden) continue;
+      menu.hidden = true;
+      chip.setAttribute("aria-expanded", "false");
+      if (returnFocus) chip.focus();
+    }
+  }
+  function setupMenu(chip, menu, fill) {
+    menus.push({ chip, menu });
+    chip.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const wasHidden = menu.hidden;
+      closeMenus(false);
+      if (!wasHidden || busy) return;
+      fill(menu);
+      menu.hidden = false;
+      chip.setAttribute("aria-expanded", "true");
+      (menu.querySelector('[aria-checked="true"]') ?? menu.querySelector("button"))?.focus();
+    });
+    menu.addEventListener("click", (event) => event.stopPropagation());
+    menu.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const items = [...menu.querySelectorAll("button")];
+      const next = items.indexOf(document.activeElement) + (event.key === "ArrowDown" ? 1 : -1);
+      items[(next + items.length) % items.length].focus();
+    });
+  }
+  document.addEventListener("click", () => closeMenus(false));
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenus(true); });
+
+  function switchEmployee(next) {
+    closeMenus(true);
+    if (busy || next.id === employee.id) return;
+    employee = next;
+    actingLabel.textContent = `Acting as ${next.id}`;
+    const hadConversation = frame.classList.contains("chat");
+    history = [];
+    thread.replaceChildren();
+    if (hadConversation) {
+      thread.append(el("div", "note", `Switched to ${next.id} · ${next.name} (${next.title}). New conversation.`));
+    }
+  }
+
+  setupMenu(document.getElementById("acting-chip"), document.getElementById("acting-menu"), (menu) => {
+    menu.replaceChildren(...employees.map((e) => {
+      const item = el("button", "");
+      item.type = "button";
+      item.setAttribute("role", "menuitemradio");
+      item.setAttribute("aria-checked", String(e.id === employee.id));
+      item.append(el("span", "id", e.id), el("span", "", e.name), el("span", "sub", e.title));
+      item.addEventListener("click", () => switchEmployee(e));
+      return item;
+    }));
+  });
+
+  setupMenu(document.getElementById("examples-chip"), document.getElementById("examples-menu"), (menu) => {
+    menu.replaceChildren(...EXAMPLES.map(([kind, text]) => {
+      const item = el("button", "");
+      item.type = "button";
+      item.setAttribute("role", "menuitem");
+      item.append(el("span", "kind", kind), el("span", "", text));
+      item.addEventListener("click", () => {
+        closeMenus(false);
+        prompt.value = text;
+        prompt.focus();
+      });
+      return item;
+    }));
+  });
+
+  // The nav link opens the same example menu.
+  document.getElementById("nav-examples").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById("examples-chip").click();
+  });
+
+  function newChat() {
+    if (busy) return;
+    closeMenus(false);
+    history = [];
+    thread.replaceChildren();
+    frame.classList.remove("chat");
+    prompt.value = "";
+    prompt.focus();
+  }
+  document.getElementById("new-chat").addEventListener("click", newChat);
 
   const traceButton = document.getElementById("trace-toggle");
   traceButton.addEventListener("click", () => {

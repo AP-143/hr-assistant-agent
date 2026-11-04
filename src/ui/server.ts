@@ -7,7 +7,7 @@ import type { RunResult } from "../agent/harness.js";
 import type { ChatMessage } from "../agent/llm.js";
 // Only used to check that the employee ID the page sends is one of the demo users. This is
 // the "login directory"; the agent itself still reaches HR data only through MCP.
-import { findEmployee } from "../mcp-server/data.js";
+import { employees as demoEmployees, findEmployee } from "../mcp-server/data.js";
 import { summarize } from "./summary.js";
 
 export type AgentRunner = (
@@ -126,7 +126,9 @@ export function createUiServer(deps: {
       res.end(await loadHtml());
     } else if (pathname === "/api/info") {
       if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
-      sendJson(res, 200, { model: deps.model });
+      // Who can be picked in the page. Identity only: no leave balances, no reporting lines.
+      const employees = demoEmployees.map(({ id, name, title }) => ({ id, name, title }));
+      sendJson(res, 200, { model: deps.model, employees });
     } else if (pathname === "/api/chat") {
       if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
       await chat(req, res);

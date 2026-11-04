@@ -61,10 +61,23 @@ describe("demo UI server", () => {
     assert.match(await res.text(), /<title>HR Assistant<\/title>/);
   });
 
-  it("reports the configured model at /api/info", async () => {
+  it("reports the configured model and the demo employees at /api/info", async () => {
     const base = await start(instant);
-    const res = await fetch(`${base}/api/info`);
-    assert.deepEqual(await res.json(), { model: "test-model" });
+    const info = await (await fetch(`${base}/api/info`)).json();
+
+    assert.equal(info.model, "test-model");
+    assert.equal(info.employees.length, 6);
+    assert.deepEqual(info.employees.find((e: { id: string }) => e.id === "E003"), {
+      id: "E003",
+      name: "Sari Dewi",
+      title: "Backend Engineer",
+    });
+  });
+
+  it("exposes only who the demo employees are, never their HR data", async () => {
+    const base = await start(instant);
+    const { employees } = await (await fetch(`${base}/api/info`)).json();
+    for (const e of employees) assert.deepEqual(Object.keys(e).sort(), ["id", "name", "title"]);
   });
 
   it("streams agent events and then the result as server-sent events", async () => {
