@@ -22,7 +22,7 @@ async function runAgentCase(
   mcp: McpToolClient,
   tools: Awaited<ReturnType<typeof allToolSpecs>>,
 ): Promise<string[]> {
-  const r = await runAgent({ question: c.question, employeeId: c.employeeId, mcp, tools });
+  const r = await runAgent({ question: c.question, employeeId: c.employeeId, mcp, tools, history: c.history });
   const failures: string[] = [];
 
   for (const t of c.expectTools ?? []) {

@@ -22,6 +22,17 @@ describe("hr-tools MCP server", () => {
     }
   });
 
+  it("tells the model what each tool is for, including that leave taken is available", async () => {
+    // The agent only knows what the descriptions say; a model that is not told the balance
+    // tool also returns days taken will search the policy documents for that instead.
+    const tools = await mcp.listTools();
+    const description = (name: string) => tools.find((t) => t.function.name === name)!.function.description;
+    assert.match(description("get_leave_balance"), /taken/i);
+    assert.match(description("get_leave_balance"), /remaining/i);
+    assert.match(description("get_subordinat_list"), /name/i);
+    assert.match(description("get_subordinat_list"), /ID/);
+  });
+
   it("get_leave_balance returns remaining and taken days", async () => {
     const { text, isError } = await mcp.callTool("get_leave_balance", { employee_id: "E002" });
     assert.equal(isError, false);

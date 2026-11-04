@@ -5,6 +5,7 @@ export type AgentEvent =
   | { type: "tool_result"; iteration: number; name: string; output: string }
   | { type: "blocked"; iteration: number; name: string; target: string }
   | { type: "duplicate"; iteration: number; name: string }
+  | { type: "follow_up"; original: string; standalone: string }
   | { type: "nudge"; iteration: number }
   | { type: "forced_search"; iteration: number; query: string }
   | { type: "retry"; label: string; message: string }
@@ -26,6 +27,8 @@ export function traceLine(event: AgentEvent, employeeId: string): string {
       return `[${event.iteration}] BLOCKED ${event.name}: ${employeeId} may not access ${event.target}`;
     case "duplicate":
       return `[${event.iteration}] duplicate call blocked`;
+    case "follow_up":
+      return `follow-up "${event.original}" understood as: "${event.standalone}"`;
     case "nudge":
       return `[${event.iteration}] answered without any tool -> nudging once`;
     case "forced_search":

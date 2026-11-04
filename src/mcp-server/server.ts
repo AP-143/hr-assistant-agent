@@ -16,7 +16,7 @@ server.registerTool(
   "get_leave_balance",
   {
     description:
-      "Get the remaining annual leave balance (in working days) for one employee. Use for questions about someone's remaining or used leave.",
+      "Get one employee's annual leave in working days: days remaining (leave_remaining_days) and days already taken (leave_taken_days). Use for any question about how much leave someone has left or has taken (sisa cuti, tinggal berapa, masih berapa, jatah cuti yang masih ada, cuti yang diambil or terpakai). Not for the yearly entitlement (per tahun): that is in the policy documents.",
     inputSchema: { employee_id: z.string().describe("Employee ID, e.g. E002") },
   },
   async ({ employee_id }) => {
@@ -35,7 +35,7 @@ server.registerTool(
   "get_subordinat_list",
   {
     description:
-      "List the direct subordinates (direct reports) of a manager. Use to find who reports to someone, e.g. before checking their team's leave.",
+      "List the direct subordinates (direct reports) of a manager, with their names, titles and employee IDs. Use it to find who reports to someone, and to find an employee's ID from their name (users name people, not IDs) before checking their leave.",
     inputSchema: { employee_id: z.string().describe("Manager's employee ID, e.g. E002") },
   },
   async ({ employee_id }) => {

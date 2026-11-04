@@ -9,11 +9,15 @@ const searchPolicySpec: ToolSpec = {
   function: {
     name: SEARCH_POLICY,
     description:
-      "Search the company HR policy documents (leave rules, working hours, WFH, reimbursement, benefits, procedures). Use for any question about rules, policies, or procedures.",
+      "Search the company HR policy documents (leave rules, working hours, WFH, reimbursement, benefits, procedures). Use for any question about rules, policies, or procedures. Not for how many leave days a person has or has taken: that is employee data (use get_leave_balance).",
     parameters: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search query in Indonesian, e.g. 'aturan cuti sakit'" },
+        query: {
+          type: "string",
+          description:
+            "Search query in Indonesian, the language of the documents. Translate it if the user wrote in English, e.g. 'aturan cuti sakit'.",
+        },
       },
       required: ["query"],
     },

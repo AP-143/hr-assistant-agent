@@ -8,7 +8,7 @@ A chatbot that answers employee HR questions from the company's policy documents
 ollama pull qwen3:4b-instruct && ollama pull bge-m3    # needs Node.js 22+ and Ollama
 npm install && npm run ingest                          # read the HR document into the vector store
 npm run chat -- --employee-id E002                     # talk to it (add --ask "..." for one question)
-npm run eval                                           # 13 automatic checks, ~15 s
+npm run eval                                           # 25 automatic checks, ~30 s
 npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
 
@@ -50,7 +50,7 @@ flowchart LR
 
 ## 3. Evaluation
 
-**Today:** `npm run eval` runs 13 checks (right section found, right fact, right tool, the polite not-covered reply, flagged by the harness, for out-of-scope questions, access blocked). All pass, and it fails when I loosen the guardrail on purpose. It is a small smoke test, not a benchmark.
+**Today:** `npm run eval` runs 25 checks: right section found, right fact, right tool, people asked by name, totals and "who has the most", short follow-ups ("Kalau Andi?"), wording ("Anda", never "sisa cuti saya"), the polite not-covered reply for out-of-scope questions, and access blocked. All pass. The same suite fails 7 checks on the code from before the wording and routing fixes, so it can catch regressions. It is a small smoke test, not a benchmark.
 
 **What I would add for production:**
 1. **Retrieval quality:** is the right passage in the top results? (recall@k, MRR on a few hundred labelled questions.)
