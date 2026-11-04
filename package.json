@@ -9,6 +9,7 @@
     "chat": "tsx src/agent/cli.ts",
     "eval": "tsx src/eval/run.ts",
     "mcp-server": "tsx src/mcp-server/server.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
