@@ -8,7 +8,7 @@ A chatbot that answers employee HR questions from the company's policy documents
 ollama pull qwen3:4b-instruct && ollama pull bge-m3    # needs Node.js 22+ and Ollama
 npm install && npm run ingest                          # read the HR document into the vector store
 npm run chat -- --employee-id E002                     # talk to it (add --ask "..." for one question)
-npm run eval                                           # 25 automatic checks, ~30 s
+npm run eval                                           # 33 automatic checks, ~40 s
 npm run ui                                             # optional browser demo at http://localhost:4310 (PORT=4311 to change)
 ```
 
@@ -45,14 +45,14 @@ flowchart LR
 ## 2. Trade-offs
 
 - **Chunk = 800 characters, 100 overlap, cut at headings.** Each policy section is short and holds one rule with its numbers. Bigger chunks mix rules together; smaller ones split a rule from its exception. Cost: a little repeated text.
-- **Search must score above 0.59 to count.** I measured it: right sections scored 0.62-0.75, off-topic questions at most 0.56. I prefer a wrongly polite "not covered" over a confident wrong answer in HR. Cost: the gap is narrow, so re-measure on the real 200-page corpus.
+- **Search must score above 0.59 to count, and near misses are double-checked.** I measured it: formally worded questions scored 0.62-0.75 and off-topic ones at most 0.56. But colloquial wording ("saya ingin resigne", "kenaikan gaji kapan?") scores 0.55-0.59 while the right section is still ranked first, and off-topic questions reach 0.56, so no score cut-off can tell them apart. Scores from 0.50 to 0.59 therefore go to a one-word check by the model ("do these passages answer the question?"). On this corpus it accepted 9 of 9 covered questions and turned down 11 of 11 uncovered ones; 40 out-of-scope tries end to end were all declined. I prefer a wrongly polite "not covered" over a confident wrong answer in HR. Cost: one extra model call for near misses, and the numbers must be re-measured on the real 200-page corpus.
 - **LanceDB now, pgvector later.** LanceDB needs no setup for a demo. In production pgvector keeps vectors next to existing data, with access control and backups.
 - **Small local model.** Private and free, but careless: it skipped searching, compared numbers wrongly, and stopped searching once chat history was replayed (0/5 right, versus 5/5 when history is a short note). The harness fixed each one, so a bigger model is an upgrade, not a requirement.
 - **Document search is a tool the model chooses**, not always-on. It saves a search for pure data questions. Cost: the model sometimes skips it, hence the forced search.
 
 ## 3. Evaluation
 
-**Today:** `npm run eval` runs 25 checks: right section found, right fact, right tool, people asked by name, totals and "who has the most", short follow-ups ("Kalau Andi?"), wording ("Anda", never "sisa cuti saya"), the polite not-covered reply for out-of-scope questions, and access blocked. All pass. The same suite fails 7 checks on the code from before the wording and routing fixes, so it can catch regressions. It is a small smoke test, not a benchmark.
+**Today:** `npm run eval` runs 33 checks: right section found, right fact, right tool, people asked by name, totals and "who has the most", short follow-ups ("Kalau Andi?"), colloquial wording and typos ("resigne"), wording ("Anda", never "sisa cuti saya"), the polite not-covered reply for out-of-scope and near-miss questions, and access blocked. All pass. The suite fails on the code from before the wording, routing and near-miss fixes, so it can catch regressions. It is a small smoke test, not a benchmark.
 
 **What I would add for production:**
 1. **Retrieval quality:** is the right passage in the top results? (recall@k, MRR on a few hundred labelled questions.)

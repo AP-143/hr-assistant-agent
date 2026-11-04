@@ -20,3 +20,11 @@ export function classifyToolResult(name: string, output: string): ToolOutcome {
   if (name === SEARCH_POLICY) return data.found === true ? "documents_found" : "documents_empty";
   return "error" in data ? "failed" : "data_ok";
 }
+
+// A short answer that says the information is missing and points to the HR team: the model
+// declined in its own words instead of using the fixed reply. Kept narrow on purpose: both cues
+// must be there and the answer must be short, so a real answer that happens to say "hubungi tim
+// HR" is left alone.
+export function looksLikeDecline(text: string): boolean {
+  return text.length <= 200 && /\bhubungi tim HR\b/i.test(text) && /\btidak\s+(disebutkan|tercantum|ada|tersedia|ditemukan)\b/i.test(text);
+}

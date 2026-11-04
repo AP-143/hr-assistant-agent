@@ -6,6 +6,7 @@
 <meta name="description" content="An HR chatbot that answers from company policy documents and checks live HR data. Runs locally.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
+<link rel="icon" href="data:,">
 <script>document.documentElement.classList.add("anim")</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -420,6 +421,20 @@ img, svg { display: block; }
 
   const scrollDown = () => { thread.scrollTop = thread.scrollHeight; };
 
+  // What the user reads when something fails: plain Indonesian that says what to do, never
+  // the browser's "Failed to fetch" or a raw server message.
+  function friendlyError(err) {
+    const text = String(err?.message ?? err);
+    if (err instanceof TypeError) {
+      return "Tidak dapat terhubung ke server. Pastikan `npm run ui` masih berjalan, lalu coba lagi.";
+    }
+    if (/still working/i.test(text)) return "Pertanyaan sebelumnya masih diproses. Tunggu sebentar, lalu kirim lagi.";
+    if (/timed out|fetch failed|ECONNREFUSED|Ollama/i.test(text)) {
+      return "Model bahasa tidak merespons. Pastikan Ollama berjalan, lalu coba lagi.";
+    }
+    return `Maaf, terjadi kendala: ${text}`;
+  }
+
   const BADGES = {
     documents: "From documents",
     hr_system: "From HR system",
@@ -450,7 +465,7 @@ img, svg { display: block; }
       fail(message) {
         typing.remove();
         bubble.classList.add("error");
-        answer.append(el("p", "", `Something went wrong: ${message}`));
+        answer.append(el("p", "", message));
       },
     };
   }
@@ -508,7 +523,7 @@ img, svg { display: block; }
       turn.finish(result);
       history.push({ role: "user", content: question }, { role: "assistant", content: result.answer });
     } catch (err) {
-      turn.fail(err.message);
+      turn.fail(friendlyError(err));
     } finally {
       setBusy(false);
       scrollDown();

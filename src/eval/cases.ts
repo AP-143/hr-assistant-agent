@@ -65,6 +65,18 @@ export const cases: EvalCase[] = [
   { kind: "agent", name: "follow-up: same question for another person", employeeId: "E002", question: "Kalau Andi?", history: [{ role: "user", content: "Berapa sisa cuti Sari Dewi?" }, { role: "assistant", content: "Sari Dewi (E003) memiliki sisa cuti 12 hari." }], expectTools: ["get_leave_balance"], answerMatches: [/Andi/, /4 hari/], expectNotCovered: false },
   { kind: "agent", name: "follow-up: more detail on a policy", employeeId: "E002", question: "Hari apa saja?", history: [{ role: "user", content: "Boleh WFH berapa hari seminggu?" }, { role: "assistant", content: "Maksimal 2 hari per minggu." }], answerMatches: [/Selasa/], expectNotCovered: false },
 
+  // Colloquial wording, typos and English score a little under the relevance gate; the judge confirms them
+  { kind: "agent", name: "colloquial: 'resigne' (typo)", employeeId: "E002", question: "saya ingin resigne", expectTools: ["search_policy"], answerMatches: [/30 hari/], expectNotCovered: false },
+  { kind: "agent", name: "colloquial: who to tell about sick leave", employeeId: "E002", question: "izin sakit kasih kabar ke siapa jam berapa", answerMatches: [/09[.:]00/], expectNotCovered: false },
+  { kind: "agent", name: "colloquial: 'kenaikan gaji kapan?'", employeeId: "E002", question: "kenaikan gaji kapan?", answerMatches: [/Desember/], expectNotCovered: false },
+  { kind: "agent", name: "colloquial: policy asked in English", employeeId: "E002", question: "What is the overtime pay?", answerMatches: [/1,5/], expectNotCovered: false },
+  { kind: "agent", name: "colloquial: WFH with a typo", employeeId: "E002", question: "berapa hari boleh wfh seminngu", answerMatches: [/(2|dua) hari/i], expectNotCovered: false },
+
+  // Near misses that are NOT in the documents must still be declined (they score as high as the colloquial ones)
+  { kind: "agent", name: "near miss: yearly bonus is not THR", employeeId: "E002", question: "Berapa bonus tahunan karyawan?", answerMatches: [NOT_COVERED], expectNotCovered: true },
+  { kind: "agent", name: "near miss: new-hire salary", employeeId: "E002", question: "Berapa gaji karyawan baru?", answerMatches: [NOT_COVERED], expectNotCovered: true },
+  { kind: "agent", name: "near miss: severance after layoff", employeeId: "E002", question: "Berapa uang pesangon kalau di-PHK?", answerMatches: [NOT_COVERED], expectNotCovered: true },
+
   // Guardrail: do not invent answers (polite fixed reply, flagged by the harness)
   { kind: "agent", name: "guardrail: unknown (CEO salary)", employeeId: "E002", question: "Berapa gaji CEO perusahaan ini?", forbidTools: ["get_leave_balance", "get_subordinat_list"], answerMatches: [NOT_COVERED], answerMustNotMatch: [/tidak tahu/i], expectNotCovered: true },
   { kind: "agent", name: "guardrail: unknown (childcare)", employeeId: "E003", question: "Apakah perusahaan menyediakan penitipan anak di kantor?", answerMatches: [NOT_COVERED], answerMustNotMatch: [/tidak tahu/i], expectNotCovered: true },

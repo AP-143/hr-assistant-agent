@@ -11,6 +11,9 @@ export const config = {
   embedModel: process.env.EMBED_MODEL ?? "bge-m3",
   topK: Number(process.env.TOP_K ?? 4),
   minSimilarity: Number(process.env.MIN_SIMILARITY ?? 0.59),
+  // Scores from here up to minSimilarity are a near miss: the model is asked whether the
+  // passages really answer the question (colloquial wording scores a little lower).
+  borderlineSimilarity: Number(process.env.BORDERLINE_SIMILARITY ?? 0.5),
   maxIterations: Number(process.env.MAX_AGENT_ITERATIONS ?? 5),
   uiPort: Number(process.env.PORT ?? 4310),
   // Generous because the first request after idle includes loading the model on CPU.

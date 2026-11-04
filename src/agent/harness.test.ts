@@ -193,6 +193,30 @@ describe("agent harness", () => {
     assert.equal(result.answer, "Sisa cuti Sari Dewi (E003) adalah 12 hari.");
   });
 
+  it("treats the employee ID without regard to case or spaces", async () => {
+    let system = "";
+    const llm = async (messages: ChatMessage[]) => {
+      system ||= messages.find((m) => m.role === "system")?.content ?? "";
+      return reply("Halo!");
+    };
+    await runAgent({ question: "halo", employeeId: " e002 ", mcp, tools, llm });
+
+    assert.match(system, /employee E002\b/);
+    assert.doesNotMatch(system, /e002/);
+  });
+
+  it("never hands back an empty answer", async () => {
+    const llm = async (messages: ChatMessage[]) =>
+      hasToolResult(messages)
+        ? reply("   ")
+        : { role: "assistant" as const, content: "", tool_calls: [{ function: { name: "get_leave_balance", arguments: { employee_id: "E002" } } }] };
+
+    const result = await runAgent({ question: "Sisa cuti saya?", employeeId: "E002", mcp, tools, llm });
+
+    assert.match(result.answer, /hubungi tim HR/i);
+    assert.ok(result.answer.trim().length > 0);
+  });
+
   describe("follow-up questions", () => {
     const history = [
       { role: "user" as const, content: "Berapa sisa cuti Sari Dewi?" },
@@ -287,6 +311,47 @@ describe("agent harness", () => {
     });
   });
 
+  describe("colloquial questions that score just under the gate", () => {
+    // "resigne" scores 0.570 against the right section: under the 0.59 gate, so the judge decides.
+    const llm = async (messages: ChatMessage[]) =>
+      hasToolResult(messages)
+        ? reply("Anda wajib menyerahkan surat pengunduran diri minimal 30 hari kalender sebelumnya.")
+        : { role: "assistant" as const, content: "", tool_calls: [{ function: { name: "search_policy", arguments: { query: "saya ingin resigne" } } }] };
+
+    it("answers when the judge confirms the passage", async () => {
+      const result = await runAgent({ question: "saya ingin resigne", employeeId: "E002", mcp, tools, llm, judgeRelevance: async () => true });
+
+      assert.match(result.answer, /30 hari/);
+      assert.equal(result.notCovered, false);
+    });
+
+    it("gives the polite not-covered reply when the judge turns the passage down", async () => {
+      const result = await runAgent({ question: "saya ingin resigne", employeeId: "E002", mcp, tools, llm, judgeRelevance: async () => false });
+
+      assert.equal(result.answer, NOT_COVERED_REPLY);
+      assert.equal(result.notCovered, true);
+    });
+
+    it("judges against the user's question, not the search query the model wrote", async () => {
+      let asked = "";
+      await runAgent({
+        question: "saya ingin resigne",
+        employeeId: "E002",
+        mcp,
+        tools,
+        llm: async (messages) =>
+          hasToolResult(messages)
+            ? reply("ok")
+            : { role: "assistant" as const, content: "", tool_calls: [{ function: { name: "search_policy", arguments: { query: "resigne" } } }] },
+        judgeRelevance: async (question) => {
+          asked = question;
+          return true;
+        },
+      });
+      assert.equal(asked, "saya ingin resigne");
+    });
+  });
+
   describe("not-covered guarantee", () => {
     const call = (name: string, args: Record<string, unknown>): ChatMessage => ({
       role: "assistant",
@@ -350,6 +415,31 @@ describe("agent harness", () => {
 
       assert.equal(result.answer, "Anda tidak memiliki akses untuk data tersebut.");
       assert.equal(result.notCovered, false);
+    });
+
+    it("turns a refusal in the model's own words into the fixed reply", async () => {
+      const result = await runAgent({
+        question: "Berapa hari cuti tahunan yang saya dapat?",
+        employeeId: "E002",
+        mcp,
+        tools,
+        llm: searchThen("cuti tahunan", "Cuti besar tidak disebutkan dalam kebijakan yang tersedia. Silakan hubungi tim HR untuk informasi lebih lanjut."),
+      });
+
+      assert.equal(result.answer, NOT_COVERED_REPLY);
+      assert.equal(result.notCovered, true);
+    });
+
+    it("keeps an answer that mixes real data with a refusal for one part", async () => {
+      let step = 0;
+      const llm = async () => {
+        step += 1;
+        if (step === 1) return call("get_leave_balance", { employee_id: "E002" });
+        return reply("Sisa cuti Anda 7 hari. Aturan cuti besar tidak tercantum dalam kebijakan. Silakan hubungi tim HR.");
+      };
+      const result = await runAgent({ question: "Sisa cuti saya dan aturan cuti besar?", employeeId: "E002", mcp, tools, llm });
+
+      assert.match(result.answer, /^Sisa cuti Anda 7 hari\./);
     });
 
     it("flags the run when the model itself gives the fixed reply, and keeps its text", async () => {

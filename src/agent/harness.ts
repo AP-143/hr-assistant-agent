@@ -1,11 +1,12 @@
 import { config } from "../config.js";
 import { traceLine, type AgentEvent } from "./events.js";
+import { judgeRelevance } from "../rag/judge.js";
 import { condenseFollowUp, lastExchange, type Exchange } from "./followup.js";
-import { NOT_COVERED_REPLY, classifyToolResult } from "./grounding.js";
+import { NOT_COVERED_REPLY, classifyToolResult, looksLikeDecline } from "./grounding.js";
 import { addressUser, collectPeople, isFollowUp, nameKnownIds } from "./wording.js";
 import { chat, type ChatMessage, type ToolSpec } from "./llm.js";
 import type { McpToolClient } from "./mcpClient.js";
-import { SEARCH_POLICY, runSearchPolicy } from "./tools.js";
+import { SEARCH_POLICY, runSearchPolicy, type RelevanceJudge } from "./tools.js";
 
 export interface RunResult {
   answer: string;
@@ -30,6 +31,9 @@ export type TraceFn = (line: string) => void;
 type EmitFn = (event: AgentEvent) => void;
 
 const AUTHZ_TOOLS = new Set(["get_leave_balance", "get_subordinat_list"]);
+
+// Shown when the agent cannot produce an answer (iteration cap, empty reply).
+const SAFE_FALLBACK = "Maaf, saya tidak bisa menyelesaikan pertanyaan ini. Silakan hubungi tim HR.";
 
 const NUDGE =
   "Reminder: if this question needs company information (policy, leave, team), call a tool first instead of answering from memory. If it is only a greeting or small talk, answer directly.";
@@ -122,14 +126,19 @@ export async function runAgent(opts: {
   maxIterations?: number;
   // Rewrites a short follow-up ("Kalau Andi?") into a complete question; injectable for tests.
   condenseFollowUp?: (question: string, previous: Exchange) => Promise<string | null>;
+  // Confirms near-miss search results; injectable for tests.
+  judgeRelevance?: RelevanceJudge;
 }): Promise<RunResult> {
-  const { question, employeeId, mcp, tools } = opts;
+  const { question, mcp, tools } = opts;
+  // E002, e002 and " e002 " are the same person.
+  const employeeId = opts.employeeId.trim().toUpperCase();
   // Single reporting point: the text trace is derived from the same events.
   const emit: EmitFn = (event) => {
     opts.onEvent?.(event);
     opts.trace?.(traceLine(event, employeeId));
   };
   const llm = opts.llm ?? chat;
+  const judge: RelevanceJudge = opts.judgeRelevance ?? ((q, passages) => judgeRelevance(llm, q, passages));
   const maxIterations = opts.maxIterations ?? config.maxIterations;
 
   const previous = lastExchange(opts.history ?? []);
@@ -200,7 +209,7 @@ export async function runAgent(opts: {
         // saja?" has no topic of its own), prepend the previous question so the retriever has one.
         const args = { query: standalone ?? (previous ? `${previous.previousQuestion} ${question}` : question) };
         emit({ type: "forced_search", iteration: i, query: args.query });
-        const output = await withRetry(() => runSearchPolicy(args), emit, SEARCH_POLICY);
+        const output = await withRetry(() => runSearchPolicy(args, { question: standalone ?? question, judge }), emit, SEARCH_POLICY);
         emit({ type: "tool_result", iteration: i, name: SEARCH_POLICY, output });
         recordEvidence(SEARCH_POLICY, output);
         messages.push(
@@ -211,12 +220,18 @@ export async function runAgent(opts: {
         continue;
       }
       // Guarantee: if the documents had nothing and no HR data backs the answer, whatever the model
-      // wrote is unsupported, so the user gets the fixed polite reply instead.
-      const modelSaidNotCovered = reply.content.includes(NOT_COVERED_REPLY);
+      // wrote is unsupported, so the user gets the fixed polite reply instead. A refusal the model
+      // wrote in its own words ("tidak disebutkan ... hubungi tim HR") gets the same reply, so the
+      // answer and its badge look the same every time.
+      const gaveFixedReply = reply.content.includes(NOT_COVERED_REPLY);
       const nothingFound =
         evidence.documentsEmpty && !evidence.documentsFound && !evidence.dataOk && result.blocked.length === 0;
-      result.notCovered = nothingFound || modelSaidNotCovered;
-      result.answer = addressUser(nameKnownIds(nothingFound && !modelSaidNotCovered ? NOT_COVERED_REPLY : reply.content, people));
+      const declinedInOwnWords = !gaveFixedReply && !evidence.dataOk && looksLikeDecline(reply.content);
+      result.notCovered = nothingFound || gaveFixedReply || declinedInOwnWords;
+      const useFixedReply = (nothingFound || declinedInOwnWords) && !gaveFixedReply;
+      const written = useFixedReply ? NOT_COVERED_REPLY : reply.content;
+      // A model that returns nothing (or only spaces) must not leave the user with a blank bubble.
+      result.answer = written.trim() ? addressUser(nameKnownIds(written, people)) : SAFE_FALLBACK;
       emit({ type: "final", iteration: i, answer: result.answer });
       return result;
     }
@@ -248,7 +263,7 @@ export async function runAgent(opts: {
           result.blocked.push(name);
           output = JSON.stringify({ error: "Access denied. You may only view yourself and your own subordinates." });
         } else if (name === SEARCH_POLICY) {
-          output = await withRetry(() => runSearchPolicy(args), emit, name);
+          output = await withRetry(() => runSearchPolicy(args, { question: standalone ?? question, judge }), emit, name);
         } else {
           output = (await withRetry(() => mcp.callTool(name, args), emit, name)).text;
         }
@@ -261,7 +276,7 @@ export async function runAgent(opts: {
   }
 
   result.hitIterationLimit = true;
-  result.answer = "Maaf, saya tidak bisa menyelesaikan pertanyaan ini. Silakan hubungi tim HR.";
+  result.answer = SAFE_FALLBACK;
   emit({ type: "iteration_limit", max: maxIterations });
   return result;
 }

@@ -1,5 +1,7 @@
+import { config } from "../config.js";
+import { judgeRelevance } from "../rag/judge.js";
 import { retrieve } from "../rag/retrieve.js";
-import type { ToolSpec } from "./llm.js";
+import { chat, type ToolSpec } from "./llm.js";
 import type { McpToolClient } from "./mcpClient.js";
 
 export const SEARCH_POLICY = "search_policy";
@@ -26,9 +28,23 @@ const searchPolicySpec: ToolSpec = {
 
 // Local RAG tool: the same function-calling interface as the MCP tools, so the LLM
 // chooses between documents (RAG) and live data (MCP) in one decision.
-export async function runSearchPolicy(args: Record<string, unknown>): Promise<string> {
+export type RelevanceJudge = (question: string, passages: string[]) => Promise<boolean>;
+
+export async function runSearchPolicy(
+  args: Record<string, unknown>,
+  // question: what the user actually asked (the judge reads this, not the model's search query).
+  ctx: { question?: string; judge?: RelevanceJudge } = {},
+): Promise<string> {
   const query = String(args.query ?? "");
-  const { relevant, all } = await retrieve(query);
+  let { relevant, all } = await retrieve(query);
+
+  // Near miss: the right section is usually first but scores a little under the gate when the
+  // question is colloquial ("saya ingin resigne"). Let the model confirm instead of turning it away.
+  const nearMiss = relevant.length === 0 && all.length > 0 && all[0].similarity >= config.borderlineSimilarity;
+  if (nearMiss) {
+    const judge = ctx.judge ?? ((q, passages) => judgeRelevance(chat, q, passages));
+    if (await judge(ctx.question ?? query, all.slice(0, 2).map((c) => c.text))) relevant = all;
+  }
 
   if (relevant.length === 0) {
     return JSON.stringify({

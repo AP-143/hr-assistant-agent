@@ -1,4 +1,5 @@
 import readline from "node:readline";
+import { directory, findInDirectory } from "../directory.js";
 import { runAgent } from "./harness.js";
 import type { ChatMessage } from "./llm.js";
 import { McpToolClient } from "./mcpClient.js";
@@ -16,11 +17,17 @@ function parseArgs() {
 const dim = (s: string) => `\x1b[90m${s}\x1b[0m`;
 
 async function main() {
-  const { employeeId, ask } = parseArgs();
-  if (!employeeId) {
+  const { employeeId: requestedId, ask } = parseArgs();
+  if (!requestedId) {
     console.error('Usage: npm run chat -- --employee-id E002 [--ask "question"]');
     process.exit(1);
   }
+  const person = findInDirectory(requestedId);
+  if (!person) {
+    console.error(`Unknown employee ID "${requestedId}". Choose one of: ${directory.map((e) => e.id).join(", ")}`);
+    process.exit(1);
+  }
+  const employeeId = person.id;
 
   const mcp = new McpToolClient();
   await mcp.connect();
