@@ -81,6 +81,65 @@ describe("agent harness", () => {
     assert.match(toolOutput, /Kebijakan WFH/);
   });
 
+  describe("access control", () => {
+    // Fake model: calls one tool, then repeats whatever the tool returned.
+    const callThenEcho = (name: string, args: Record<string, unknown>) => async (messages: ChatMessage[]) => {
+      const tool = messages.find((m) => m.role === "tool");
+      if (tool) return reply(tool.content);
+      return { role: "assistant" as const, content: "", tool_calls: [{ function: { name, arguments: args } }] };
+    };
+
+    it("blocks an employee from reading their manager's leave and leaks nothing", async () => {
+      const result = await runAgent({
+        question: "Berapa sisa cuti E001?",
+        employeeId: "E003",
+        mcp,
+        tools,
+        llm: callThenEcho("get_leave_balance", { employee_id: "E001" }),
+      });
+
+      assert.deepEqual(result.blocked, ["get_leave_balance"]);
+      assert.match(result.answer, /Access denied/);
+      assert.doesNotMatch(result.answer, /leave_remaining_days|Rina/);
+    });
+
+    it("blocks reading another employee's subordinates", async () => {
+      const result = await runAgent({
+        question: "Siapa bawahan E002?",
+        employeeId: "E003",
+        mcp,
+        tools,
+        llm: callThenEcho("get_subordinat_list", { employee_id: "E002" }),
+      });
+      assert.deepEqual(result.blocked, ["get_subordinat_list"]);
+    });
+
+    it("allows a manager to read an indirect report", async () => {
+      const result = await runAgent({
+        question: "Berapa sisa cuti E003?",
+        employeeId: "E001",
+        mcp,
+        tools,
+        llm: callThenEcho("get_leave_balance", { employee_id: "E003" }),
+      });
+
+      assert.deepEqual(result.blocked, []);
+      assert.equal(JSON.parse(result.answer).leave_remaining_days, 12);
+    });
+
+    it("allows reading yourself, regardless of ID casing", async () => {
+      const result = await runAgent({
+        question: "Sisa cuti saya?",
+        employeeId: "e004",
+        mcp,
+        tools,
+        llm: callThenEcho("get_leave_balance", { employee_id: " E004 " }),
+      });
+      assert.deepEqual(result.blocked, []);
+      assert.equal(JSON.parse(result.answer).leave_remaining_days, 4);
+    });
+  });
+
   it("does not force a search for small talk", async () => {
     const llm = async () => reply("Halo! Ada yang bisa saya bantu soal HR?");
 
