@@ -1,0 +1,26 @@
+{
+  "name": "hr-assistant-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Internal HR chatbot: RAG over HR policies + MCP tools, running fully local on Ollama.",
+  "scripts": {
+    "ingest": "tsx src/rag/ingest.ts",
+    "chat": "tsx src/agent/cli.ts",
+    "eval": "tsx src/eval/run.ts",
+    "mcp-server": "tsx src/mcp-server/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.22.0",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "apache-arrow": "^18.1.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
