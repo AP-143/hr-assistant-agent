@@ -12,6 +12,7 @@ export const config = {
   topK: Number(process.env.TOP_K ?? 4),
   minSimilarity: Number(process.env.MIN_SIMILARITY ?? 0.59),
   maxIterations: Number(process.env.MAX_AGENT_ITERATIONS ?? 5),
+  uiPort: Number(process.env.PORT ?? 4310),
   // Generous because the first request after idle includes loading the model on CPU.
   requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS ?? 120_000),
   toolTimeoutMs: Number(process.env.TOOL_TIMEOUT_MS ?? 30_000),

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HR Assistant — Ask anything about HR</title>
+<meta name="description" content="An HR chatbot that answers from company policy documents and checks live HR data. Runs locally.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=block">
+<style>
+:root {
+  --u: min(0.06410256vw, 0.12400794vh);
+  --vu: 0.09920635vh;
+  --inset-top: 41; --inset-bottom: 106;
+
+  --font-text: Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: Inter, var(--font-text);
+
+  --nav-ls: -0.0115em; --brand-ls: -0.0154em; --cta-ls: -0.0127em; --body-ls: 0.007em;
+  --display-ls: 0.0018em; --proof-ls: 0.0065em;
+  --w-nav: 400; --w-brand: 500; --w-cta: 520; --w-display: 410; --w-proof: 480;
+  --hero-gap: 51;
+}
+@supports (height: 100dvh) {
+  :root { --u: min(0.06410256vw, 0.12400794dvh); --vu: 0.09920635dvh; }
+}
+@media (min-width: 1561px) { :root { --inset-top: 27; --inset-bottom: 74; } }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  overflow: hidden;
+  background: #0a0d12;
+  color: #fff;
+  font-family: var(--font-text);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+button, input, textarea { font: inherit; color: inherit; background: none; border: 0; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+:focus-visible { outline: 2px solid #F8B285; outline-offset: 3px; border-radius: 4px; }
+
+/* ---------- stage: video + frame ---------- */
+.stage {
+  position: fixed; inset: 0; overflow: hidden;
+  /* Visible whenever the video cannot load (offline demo). */
+  background: radial-gradient(120% 90% at 50% 0%, #1c2740 0%, #0f1522 45%, #0a0d12 80%);
+}
+.stage-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.frame {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; min-height: 0;
+  padding: calc(var(--inset-top) * var(--vu)) calc(225 * var(--u)) calc(var(--inset-bottom) * var(--vu));
+  transition: padding-bottom .5s cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ---------- nav ---------- */
+.nav {
+  position: relative; flex: none;
+  height: calc(43 * var(--u));
+  display: flex; align-items: center; justify-content: space-between;
+}
+.brand { display: inline-flex; align-items: center; gap: calc(12 * var(--u)); }
+.mark { width: calc(34 * var(--u)); height: calc(34 * var(--u)); flex: none; }
+.wordmark {
+  font-family: var(--font-display); font-variation-settings: "opsz" 32;
+  font-size: calc(18.49 * var(--u)); font-weight: var(--w-brand); letter-spacing: var(--brand-ls);
+  transform: translateY(calc(1 * var(--u)));
+  text-shadow: 0 calc(1 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, .30);
+}
+.links {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc((50.5 - 41) * var(--u));
+  display: flex; gap: calc(50 * var(--u));
+}
+.links a {
+  font-size: calc(21.69 * var(--u)); font-weight: var(--w-nav); letter-spacing: var(--nav-ls); line-height: 1.2;
+  text-shadow: 0 calc(1 * var(--u)) calc(12 * var(--u)) rgba(0, 0, 0, .32);
+  transition: opacity .18s ease; white-space: nowrap;
+}
+.links a:hover { opacity: .72; }
+.cta {
+  align-self: flex-start; margin-top: calc((42 - 41) * var(--u));
+  width: calc(140 * var(--u)); height: calc(43 * var(--u)); border-radius: calc(12 * var(--u));
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: calc(15.70 * var(--u)); font-weight: var(--w-cta); letter-spacing: var(--cta-ls);
+  background: linear-gradient(180deg, #3d3d3f 0%, #1d1d20 100%);
+  box-shadow: inset 0 calc(1 * var(--u)) 0 rgba(255, 255, 255, .10), 0 calc(2 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, .28);
+}
+.cta span { transform: translateY(calc(2 * var(--u))); }
+.cta:hover { filter: brightness(1.16); }
+.cta:active { transform: translateY(1px); }
+
+/* ---------- hero ---------- */
+.hero {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(var(--hero-gap) * var(--vu));
+  padding-bottom: calc(4 * var(--vu));
+  transition: gap .5s cubic-bezier(.22, 1, .36, 1);
+}
+.h1 {
+  font-family: var(--font-display); font-variation-settings: "opsz" 32;
+  font-size: calc(36.25 * var(--u)); font-weight: var(--w-display); line-height: 1.10; letter-spacing: var(--display-ls);
+  text-align: center; white-space: nowrap;
+  text-shadow: 0 calc(2 * var(--u)) calc(22 * var(--u)) rgba(0, 0, 0, .30);
+  max-height: calc(60 * var(--u));
+  transition: opacity .35s ease, max-height .5s cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ---------- composer card ---------- */
+.card {
+  position: relative; flex: none;
+  width: calc(708 * var(--u)); height: calc(143 * var(--u)); border-radius: calc(26 * var(--u));
+  margin-right: calc(3 * var(--u));
+  background: rgba(41, 41, 43, .955);
+  -webkit-backdrop-filter: blur(calc(26 * var(--u))) saturate(112%);
+  backdrop-filter: blur(calc(26 * var(--u))) saturate(112%);
+  box-shadow: inset 0 0 0 1px rgba(214, 228, 255, .14), 0 calc(22 * var(--u)) calc(60 * var(--u)) rgba(0, 0, 0, .30);
+  transition: box-shadow .2s ease;
+}
+.card:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(248, 178, 133, .5), 0 calc(22 * var(--u)) calc(60 * var(--u)) rgba(0, 0, 0, .30);
+}
+/* A real textarea in the spot where the design has its placeholder paragraph. */
+.ph {
+  position: absolute;
+  left: calc((452 - 425) * var(--u)); top: calc((446 - 413) * var(--u)); right: calc(24 * var(--u));
+  height: calc(52 * var(--u));
+  resize: none; outline: none; overflow-y: auto; scrollbar-width: none;
+  color: #ececee;
+  font-size: calc(9.97 * var(--u)); font-weight: 400; line-height: 1.35; letter-spacing: var(--body-ls);
+}
+.ph::placeholder { color: #8B8C8E; opacity: 1; }
+.ph::-webkit-scrollbar { display: none; }
+
+.tools {
+  position: absolute;
+  left: calc((444 - 425) * var(--u)); top: calc((505 - 413) * var(--u));
+  height: calc(30 * var(--u)); right: calc((425 + 708 - 1134) * var(--u));
+}
+.chips { display: flex; align-items: center; gap: calc(5.5 * var(--u)); height: 100%; }
+.chip {
+  height: calc(30 * var(--u)); width: calc(var(--cw) * var(--u));
+  padding-left: calc(var(--pl) * var(--u)); gap: calc(var(--ig) * var(--u));
+  border-radius: calc(9 * var(--u));
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  font-size: calc(9.0 * var(--u)); font-weight: 500; line-height: 1; color: #909093; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .088) 0%, rgba(255, 255, 255, .050) 45%, rgba(255, 255, 255, .038) 100%);
+  border: 1px solid rgba(255, 255, 255, .05);
+  transition: color .15s ease, background .15s ease;
+}
+.chip:hover { background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .07)); color: #c8c8cb; }
+.chip svg { flex: none; fill: currentColor; }
+.chip span { transform: translateY(calc(2 * var(--u))); }
+
+/* Right cluster: absolute coordinates measured from the 1560x1008 reference frame (see design notes). */
+.right { position: absolute; inset: 0; pointer-events: none; }
+.right > * { position: absolute; pointer-events: auto; }
+.model {
+  /* The reference label ("Sonnet 4.5") ends near x=575u; a longer model name grows leftwards from there. */
+  right: calc(115 * var(--u)); top: calc(15.5 * var(--u));
+  display: inline-flex; align-items: center; gap: calc(6.2 * var(--u));
+  font-size: calc(10.4 * var(--u)); font-weight: 400; line-height: 1; color: #98999C; white-space: nowrap;
+  cursor: default;
+}
+.model svg { width: calc(6.8 * var(--u)); flex: none; }
+.attach { left: calc((1043.15 - 444) * var(--u)); top: calc((515.14 - 505) * var(--u)); color: #A9AAAD; line-height: 0; }
+.attach svg { width: calc(19.79 * var(--u)); }
+.attach:hover { color: #fff; }
+.send {
+  left: calc((1084 - 444) * var(--u)); top: calc((507 - 505) * var(--u));
+  width: calc(35 * var(--u)); height: calc(35 * var(--u)); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(163deg, #FBBC94 0%, #F49D70 46%, #E88654 100%);
+  box-shadow: 0 calc(3 * var(--u)) calc(12 * var(--u)) rgba(210, 110, 60, .34);
+}
+.send svg { width: calc(11.66 * var(--u)); fill: #fff; }
+.send:hover { filter: brightness(1.07); }
+.send:active { transform: scale(.95); }
+.send[aria-disabled="true"] { filter: saturate(.3) brightness(.8); cursor: progress; }
+
+/* ---------- footer ---------- */
+.proof {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(52.3 * var(--vu));
+  max-height: calc(200 * var(--u));
+  transition: opacity .35s ease, max-height .5s cubic-bezier(.22, 1, .36, 1);
+}
+.proof p {
+  font-family: var(--font-display); font-variation-settings: "opsz" 32;
+  font-size: calc(14.01 * var(--u)); font-weight: var(--w-proof); letter-spacing: var(--proof-ls); color: rgba(255, 255, 255, .95);
+  text-shadow: 0 calc(1 * var(--u)) calc(12 * var(--u)) rgba(0, 0, 0, .35);
+}
+.stack { display: flex; align-items: center; gap: calc(62 * var(--u)); filter: drop-shadow(0 calc(1 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, .30)); }
+.stack span { font-size: calc(19 * var(--u)); font-weight: 560; letter-spacing: -0.01em; color: #fff; opacity: .96; }
+
+/* ---------- chat state ---------- */
+.thread {
+  display: none;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  width: calc(708 * var(--u)); margin-right: calc(3 * var(--u));
+  flex-direction: column; gap: calc(14 * var(--u));
+  padding: 0 calc(2 * var(--u)) calc(4 * var(--u));
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .25) transparent;
+}
+.chat .thread { display: flex; }
+/* Anchor messages to the bottom, next to the composer, while keeping scroll-up working. */
+.thread > :first-child { margin-top: auto; }
+.chat .hero { gap: calc(18 * var(--vu)); justify-content: flex-end; }
+.chat .h1 { opacity: 0; max-height: 0; pointer-events: none; }
+.chat .proof { opacity: 0; max-height: 0; overflow: hidden; pointer-events: none; }
+.chat.frame { padding-bottom: calc(30 * var(--vu)); }
+
+.msg { max-width: 100%; font-size: max(14px, calc(14.5 * var(--u))); line-height: 1.5; letter-spacing: var(--body-ls); }
+.msg p + p, .msg p + ul, .msg ul + p { margin-top: .55em; }
+.msg ul { padding-left: 1.25em; }
+.msg li + li { margin-top: .2em; }
+.msg.user {
+  align-self: flex-end; max-width: 82%;
+  padding: .6em .95em; border-radius: calc(18 * var(--u)) calc(18 * var(--u)) calc(6 * var(--u)) calc(18 * var(--u));
+  background: rgba(255, 255, 255, .14); color: #fff; white-space: pre-wrap; overflow-wrap: anywhere;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+.msg.assistant {
+  align-self: flex-start; width: 100%;
+  padding: .85em 1.05em; border-radius: calc(6 * var(--u)) calc(20 * var(--u)) calc(20 * var(--u)) calc(20 * var(--u));
+  background: rgba(41, 41, 43, .9); color: #f1f1f2; overflow-wrap: anywhere;
+  -webkit-backdrop-filter: blur(calc(20 * var(--u))); backdrop-filter: blur(calc(20 * var(--u)));
+  box-shadow: inset 0 0 0 1px rgba(214, 228, 255, .12), 0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(0, 0, 0, .25);
+}
+.msg.error { box-shadow: inset 0 0 0 1px rgba(255, 120, 110, .45), 0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(0, 0, 0, .25); color: #ffd9d4; }
+.thinking { display: inline-flex; gap: 5px; padding: .35em 0; }
+.thinking i { width: 6px; height: 6px; border-radius: 50%; background: #98999C; animation: pulse 1.1s ease-in-out infinite; }
+.thinking i:nth-child(2) { animation-delay: .15s; }
+.thinking i:nth-child(3) { animation-delay: .3s; }
+@keyframes pulse { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <video class="stage-video" autoplay muted loop playsinline preload="auto"
+         src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
+
+  <div class="frame" id="frame">
+    <header class="nav">
+      <a class="brand" href="#" aria-label="HR Assistant home">
+        <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+          <circle cx="17" cy="17" r="17" fill="#9C86CE"/>
+          <circle cx="17" cy="17" r="8.6" fill="#FFFFFF"/>
+          <circle cx="17" cy="17" r="3.7" fill="#151519"/>
+        </svg>
+        <span class="wordmark">HR Assistant</span>
+      </a>
+      <nav class="links" aria-label="Primary">
+        <a href="#">Chat</a>
+        <a href="#" id="nav-examples">Examples</a>
+        <a href="https://github.com/AP-143/hr-assistant-agent#1-architecture" target="_blank" rel="noopener">Architecture</a>
+        <a href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener">Docs</a>
+      </nav>
+      <a class="cta" href="https://github.com/AP-143/hr-assistant-agent#readme" target="_blank" rel="noopener"><span>How it works</span></a>
+    </header>
+
+    <main class="hero">
+      <h1 class="h1">Ask anything about HR. Answers come from our policies.</h1>
+
+      <div class="thread" id="thread" role="log" aria-live="polite" aria-label="Conversation"></div>
+
+      <form class="card" id="composer" autocomplete="off">
+        <textarea class="ph" id="prompt" rows="2" maxlength="2000" aria-label="Ask a question"
+                  placeholder="Ask about leave, WFH, reimbursement, or your team..."></textarea>
+        <div class="tools">
+          <div class="chips">
+            <button type="button" class="chip" style="--cw:107;--pl:12;--ig:3.7">
+              <svg viewBox="0 0 16 16" width="15.06" aria-hidden="true" style="width:calc(15.06*var(--u))"><circle cx="8" cy="5" r="3.2"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5z"/></svg>
+              <span id="acting-label">Acting as E002</span>
+            </button>
+            <button type="button" class="chip" style="--cw:108;--pl:16;--ig:3.9">
+              <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(11.8*var(--u))"><path d="M1 1.5A1.5 1.5 0 0 1 2.5 0h7A1.5 1.5 0 0 1 11 1.5v5A1.5 1.5 0 0 1 9.5 8H5.2l-2.8 2.6a.5.5 0 0 1-.84-.37V8h-.06A1.5 1.5 0 0 1 1 6.5z"/></svg>
+              <span>Examples</span>
+            </button>
+            <button type="button" class="chip" style="--cw:107;--pl:15.8;--ig:2.9">
+              <svg viewBox="0 0 12 12" aria-hidden="true" style="width:calc(12.13*var(--u))"><rect x="0" y="1" width="12" height="2.4" rx="1.2"/><rect x="0" y="4.8" width="8" height="2.4" rx="1.2"/><rect x="0" y="8.6" width="10" height="2.4" rx="1.2"/></svg>
+              <span>Trace on</span>
+            </button>
+          </div>
+          <div class="right">
+            <span class="model" id="model" title="Model">
+              <span id="model-name">model</span>
+              <svg viewBox="0 0 7 4" fill="none" aria-hidden="true"><path d="M.5.5l3 3 3-3" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <button type="button" class="attach" id="new-chat" aria-label="New chat" title="New chat">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            </button>
+            <button type="submit" class="send" id="send" aria-label="Send question" title="Send">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0l5.6 6.2H7.4V12H4.6V6.2H.4z"/></svg>
+            </button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <footer class="proof">
+      <p>Runs entirely on this machine</p>
+      <div class="stack"><span>Ollama</span><span>MCP</span><span>LanceDB</span></div>
+    </footer>
+  </div>
+</div>
+
+<script>
+(() => {
+  const EMPLOYEE_ID = "E002";
+  const frame = document.getElementById("frame");
+  const thread = document.getElementById("thread");
+  const form = document.getElementById("composer");
+  const prompt = document.getElementById("prompt");
+  const sendBtn = document.getElementById("send");
+  let history = [];
+  let busy = false;
+
+  fetch("/api/info").then((r) => r.json()).then((info) => {
+    document.getElementById("model-name").textContent = info.model;
+    document.getElementById("model").title = info.model;
+  }).catch(() => {});
+
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
+  // Answers are built with textContent only, so model output can never inject HTML.
+  function renderText(container, text) {
+    let list = null;
+    for (const raw of text.split("\n")) {
+      const bullet = /^\s*[-*]\s+(.*)$/.exec(raw);
+      if (bullet) {
+        if (!list) { list = el("ul"); container.appendChild(list); }
+        list.appendChild(el("li", "", bullet[1]));
+      } else {
+        list = null;
+        if (raw.trim()) container.appendChild(el("p", "", raw.trim()));
+      }
+    }
+  }
+
+  const scrollDown = () => { thread.scrollTop = thread.scrollHeight; };
+
+  function setBusy(value) {
+    busy = value;
+    sendBtn.setAttribute("aria-disabled", String(value));
+  }
+
+  // Server-sent events over fetch: returns the final result, throws on an error event.
+  async function readStream(res, onAgent) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let end;
+      while ((end = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        const event = /^event: (.*)$/m.exec(block)?.[1];
+        const data = JSON.parse(/^data: (.*)$/m.exec(block)?.[1] ?? "null");
+        if (event === "agent") onAgent(data);
+        else if (event === "done") return data;
+        else if (event === "error") throw new Error(data.message);
+      }
+    }
+    throw new Error("The connection closed before the agent finished.");
+  }
+
+  async function send() {
+    const question = prompt.value.trim();
+    if (!question || busy) return;
+
+    frame.classList.add("chat");
+    thread.appendChild(el("div", "msg user", question));
+    prompt.value = "";
+    const bubble = el("div", "msg assistant");
+    const dots = el("div", "thinking");
+    dots.append(el("i"), el("i"), el("i"));
+    dots.setAttribute("aria-label", "The assistant is working");
+    bubble.appendChild(dots);
+    thread.appendChild(bubble);
+    scrollDown();
+    setBusy(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, employeeId: EMPLOYEE_ID, history }),
+      });
+      if (!res.ok) {
+        const problem = await res.json().catch(() => ({}));
+        throw new Error(problem.error || `Request failed (${res.status})`);
+      }
+      const result = await readStream(res, () => {});
+      bubble.replaceChildren();
+      renderText(bubble, result.answer);
+      history.push({ role: "user", content: question }, { role: "assistant", content: result.answer });
+    } catch (err) {
+      bubble.classList.add("error");
+      bubble.replaceChildren(el("p", "", `Something went wrong: ${err.message}`));
+    } finally {
+      setBusy(false);
+      scrollDown();
+      prompt.focus();
+    }
+  }
+
+  form.addEventListener("submit", (event) => { event.preventDefault(); send(); });
+  prompt.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
+  });
+
+  // If the video cannot load (offline), the dark gradient behind it stays visible.
+  document.querySelector(".stage-video").addEventListener("error", (event) => event.target.remove());
+})();
+</script>
+</body>
+</html>
