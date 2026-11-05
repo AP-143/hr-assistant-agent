@@ -21,14 +21,14 @@ flowchart LR
     D[HR documents] -->|chunk + embed| V
 ```
 
-The model picks one tool per step: document search for *rules*, MCP for *a person's data*, or both. A hand-written loop and a safety harness wrap it. The harness does what must not depend on the model:
+**Flow:**
+1. The employee asks a question.
+2. The model picks a tool: document search for *rules*, MCP for *a person's data*, or both.
+3. Before a data tool runs, the harness checks the asker may see that person (themselves or their team).
+4. The tool result goes back to the model, which writes the answer.
+5. If nothing backs the answer, the harness replaces it with a polite "not covered, contact HR" reply.
 
-- Limits steps and repeated calls; forces a document search if the model answers without looking anything up.
-- Replaces the answer with a fixed polite "not covered, contact HR" reply when nothing backs it.
-- Fixes wording in code ("Anda", employee names, short follow-ups like "Kalau Andi?").
-- Checks access before any data tool runs: you may only see yourself and your team. This is code, not a prompt rule.
-
-Stack: `qwen3:4b-instruct` via Ollama (private, tool calling, decent Indonesian), `bge-m3` embeddings, LanceDB (a folder on disk), MCP over stdio.
+Stack: `qwen3:4b-instruct` (Ollama), `bge-m3` embeddings, LanceDB, MCP over stdio.
 
 ## Trade-offs
 
