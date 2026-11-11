@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { classifyToolResult, parseObject } from "../agent/answer.js";
 import type { AgentEvent } from "../agent/events.js";
 import type { RunResult } from "../agent/harness.js";
 
@@ -12,21 +13,10 @@ export interface AnswerSummary {
   sources: AnswerSource[];
 }
 
-function parseJson(text: string): Record<string, unknown> | null {
-  try {
-    const value = JSON.parse(text);
-    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
 // "Kebijakan dan SOP > 2. Cuti > 2.1 Cuti Tahunan" -> "2.1 Cuti Tahunan"
 const shortSection = (heading: string) => heading.split(" > ").pop() ?? heading;
 
-// Where did this answer come from? Derived only from what the agent actually did.
-// `minSimilarity`: the search returns the whole top-k once the best chunk passes the gate, so
-// weaker chunks are retrieved context, not sources. They stay visible in the step details.
+// Sources = chunks above the gate; weaker top-k chunks are context, not citations.
 export function summarize(
   events: AgentEvent[],
   result: RunResult,
@@ -43,21 +33,17 @@ export function summarize(
     if (event.type === "blocked") denied = true;
     if (event.type !== "tool_result") continue;
 
-    const data = parseJson(event.output);
-    if (event.name === "search_policy") {
-      if (data?.found === true && Array.isArray(data.passages)) {
-        usedDocuments = true;
-        for (const p of data.passages as Array<{ section: string; similarity: number }>) {
-          sources.set(shortSection(p.section), p.similarity);
-        }
-      }
-    } else if (data && !("error" in data)) {
-      usedHrSystem = true;
+    const outcome = classifyToolResult(event.name, event.output);
+    if (outcome === "data_ok") usedHrSystem = true;
+    if (outcome !== "documents_found") continue;
+    usedDocuments = true;
+    const passages = parseObject(event.output)?.passages;
+    for (const p of (Array.isArray(passages) ? passages : []) as Array<{ section: string; similarity: number }>) {
+      sources.set(shortSection(p.section), p.similarity);
     }
   }
 
-  // The harness decides whether the documents covered the question; if not, the retrieved
-  // passages did not answer it, so they are not cited.
+  // The harness decides coverage; when not covered, the retrieved passages are not cited.
   const notCovered = result.notCovered;
   const badges: AnswerBadge[] = [];
   if (denied) badges.push("denied");

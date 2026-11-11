@@ -1,5 +1,4 @@
-// What the harness reports while it works. A caller (the CLI, the web UI) can listen to
-// these instead of parsing the text trace.
+// What the harness reports, so callers need not parse the text trace.
 export type AgentEvent =
   | { type: "tool_call"; iteration: number; name: string; args: Record<string, unknown>; source: "documents" | "hr_system" }
   | { type: "tool_result"; iteration: number; name: string; output: string }

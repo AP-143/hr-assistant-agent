@@ -4,7 +4,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import type { AgentEvent } from "../agent/events.js";
 import type { RunResult } from "../agent/harness.js";
-import type { ChatMessage } from "../agent/llm.js";
+import type { ChatMessage } from "../ollama.js";
 import { directory, findInDirectory } from "../directory.js";
 import { summarize } from "./summary.js";
 
@@ -74,9 +74,7 @@ function parseChatRequest(raw: string): { question: string; employeeId: string; 
   return { question: question.trim(), employeeId, history: cleanHistory };
 }
 
-// The page may only be reached as localhost. Binding to 127.0.0.1 is not enough on its own: a
-// malicious site can point its own domain at 127.0.0.1 (DNS rebinding) and then talk to us as
-// if it were the page. Such requests carry the attacker's domain in the Host header.
+// Check the Host header too: binding to 127.0.0.1 alone does not stop DNS rebinding.
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 function isLocalHost(hostHeader: string | undefined): boolean {

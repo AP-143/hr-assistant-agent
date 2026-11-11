@@ -1,10 +1,16 @@
 import { config } from "../config.js";
 import { traceLine, type AgentEvent } from "./events.js";
 import { judgeRelevance } from "../rag/judge.js";
-import { condenseFollowUp, lastExchange, type Exchange } from "./followup.js";
-import { NOT_COVERED_REPLY, classifyToolResult, looksLikeDecline } from "./grounding.js";
-import { addressUser, collectPeople, isFollowUp, nameKnownIds } from "./wording.js";
-import { chat, type ChatMessage, type ToolSpec } from "./llm.js";
+import {
+  NOT_COVERED_REPLY,
+  addressUser,
+  classifyToolResult,
+  collectPeople,
+  looksLikeDecline,
+  nameKnownIds,
+} from "./answer.js";
+import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange, type Exchange } from "./followup.js";
+import { chat, type ChatMessage, type Llm, type ToolSpec } from "../ollama.js";
 import type { McpToolClient } from "./mcpClient.js";
 import { SEARCH_POLICY, runSearchPolicy, type RelevanceJudge } from "./tools.js";
 
@@ -18,13 +24,6 @@ export interface RunResult {
   forcedRetrieval: boolean;
   // True when the HR documents did not cover the question (answer is then the fixed polite reply).
   notCovered: boolean;
-}
-
-const SMALL_TALK =
-  /^\s*(halo|hai|hi|hello|pagi|siang|sore|malam|selamat\s+\w+|terima\s*kasih|makasih|thanks|thank you|ok|oke|sip)(\s+(ya|yaa|banyak|kak|pak|bu))?\W*$/i;
-
-export function isSmallTalk(text: string): boolean {
-  return SMALL_TALK.test(text);
 }
 
 export type TraceFn = (line: string) => void;
@@ -66,9 +65,7 @@ Rules:
 13. A short follow-up such as "Kalau Andi?" or "Dan yang sudah saya ambil?" repeats the previous question for what is asked now: use the same tool again. Never answer a follow-up from the policy text when the previous question was about employee data.`;
 }
 
-// Earlier turns go in as one system note instead of replayed chat turns. Measured with the
-// 4B model: replayed turns made it answer from the previous reply and skip search_policy
-// (0/5 correct on a policy question), while the note kept it searching (5/5).
+// History as one system note: replayed turns made the 4B model skip search_policy (0/5 vs 5/5).
 function historyNote(history: ChatMessage[]): ChatMessage[] {
   if (history.length === 0) return [];
   const turns = history.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
@@ -122,7 +119,7 @@ export async function runAgent(opts: {
   trace?: TraceFn;
   onEvent?: (event: AgentEvent) => void;
   // Injectable so the loop can be tested with a scripted model.
-  llm?: (messages: ChatMessage[], tools: ToolSpec[]) => Promise<ChatMessage>;
+  llm?: Llm;
   maxIterations?: number;
   // Rewrites a short follow-up ("Kalau Andi?") into a complete question; injectable for tests.
   condenseFollowUp?: (question: string, previous: Exchange) => Promise<string | null>;
@@ -197,16 +194,12 @@ export async function runAgent(opts: {
         messages.push(reply, { role: "user", content: NUDGE });
         continue;
       }
-      // Step 2: the model ignored the nudge. Small models like to say "tidak tahu" without
-      // looking, so the harness runs the document search itself and feeds the result back.
-      // With no iteration left to read that result, never return the unverified answer:
-      // leave the loop and use the safe fallback below.
+      // Step 2: still no tool, so the harness searches itself. No iteration left -> safe fallback.
       if (ungrounded) {
         if (i >= maxIterations) break;
         result.forcedRetrieval = true;
         result.toolsCalled.push(SEARCH_POLICY);
-        // Search with the complete question. If a follow-up could not be rewritten ("hari apa
-        // saja?" has no topic of its own), prepend the previous question so the retriever has one.
+        // A follow-up that could not be rewritten gets the previous question as its topic.
         const args = { query: standalone ?? (previous ? `${previous.previousQuestion} ${question}` : question) };
         emit({ type: "forced_search", iteration: i, query: args.query });
         const output = await withRetry(() => runSearchPolicy(args, { question: standalone ?? question, judge }), emit, SEARCH_POLICY);
@@ -219,10 +212,7 @@ export async function runAgent(opts: {
         );
         continue;
       }
-      // Guarantee: if the documents had nothing and no HR data backs the answer, whatever the model
-      // wrote is unsupported, so the user gets the fixed polite reply instead. A refusal the model
-      // wrote in its own words ("tidak disebutkan ... hubungi tim HR") gets the same reply, so the
-      // answer and its badge look the same every time.
+      // Nothing found and no HR data, or a refusal in its own words -> the fixed reply, every time.
       const gaveFixedReply = reply.content.includes(NOT_COVERED_REPLY);
       const nothingFound =
         evidence.documentsEmpty && !evidence.documentsFound && !evidence.dataOk && result.blocked.length === 0;

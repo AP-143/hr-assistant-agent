@@ -1,6 +1,7 @@
+import * as lancedb from "@lancedb/lancedb";
 import { config } from "../config.js";
-import { embed } from "./ollama.js";
-import { searchVectors } from "./store.js";
+import { embed } from "../ollama.js";
+import type { Chunk } from "./chunk.js";
 
 export interface RetrievedChunk {
   heading: string;
@@ -8,17 +9,29 @@ export interface RetrievedChunk {
   similarity: number;
 }
 
-// Top-k retrieval with a relevance gate. The best chunk decides whether the documents
-// cover the question at all: below the threshold `relevant` is empty (the "tidak tahu"
-// signal). Once the gate passes, all top-k chunks are returned, because the 2nd and 3rd
-// chunk of a multi-section question usually score lower than the threshold themselves.
+export async function saveChunks(chunks: Chunk[], vectors: number[][]): Promise<void> {
+  const db = await lancedb.connect(config.dbPath);
+  const rows = chunks.map((c, i) => ({ id: c.id, heading: c.heading, text: c.text, vector: vectors[i] }));
+  // Overwrite so re-running ingest is idempotent.
+  await db.createTable(config.tableName, rows, { mode: "overwrite" });
+}
+
+// The best chunk gates coverage; once it passes, return all top-k (later sections score lower).
 export async function retrieve(
   query: string,
   k: number = config.topK,
   minSimilarity: number = config.minSimilarity,
 ): Promise<{ relevant: RetrievedChunk[]; all: RetrievedChunk[] }> {
   const [queryVector] = await embed([query]);
-  const all = await searchVectors(queryVector, k);
+  const db = await lancedb.connect(config.dbPath);
+  const table = await db.openTable(config.tableName);
+  const results = await table.vectorSearch(queryVector).distanceType("cosine").limit(k).toArray();
+  const all = results.map((r) => ({
+    heading: String(r.heading),
+    text: String(r.text),
+    // LanceDB returns cosine distance; convert to similarity.
+    similarity: 1 - Number(r._distance),
+  }));
   const gatePasses = all.length > 0 && all[0].similarity >= minSimilarity;
   return { all, relevant: gatePasses ? all : [] };
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
-import { postJson } from "./http.js";
+import { postJson, stripReasoning } from "./ollama.js";
 
 describe("postJson", () => {
   let hanging: http.Server;
@@ -48,5 +48,24 @@ describe("postJson", () => {
   it("posts JSON and returns the parsed response", async () => {
     const res = await postJson<{ path: string; received: { a: number } }>("/api/x", { a: 1 }, { host: hostOf(echo) });
     assert.deepEqual(res, { path: "/api/x", received: { a: 1 } });
+  });
+});
+
+
+describe("stripReasoning", () => {
+  it("keeps plain answers untouched", () => {
+    assert.equal(stripReasoning("12 hari kerja."), "12 hari kerja.");
+  });
+
+  it("drops a full <think>...</think> block", () => {
+    assert.equal(stripReasoning("<think>hmm</think>\n\n12 hari."), "12 hari.");
+  });
+
+  it("drops reasoning that only has the closing tag", () => {
+    assert.equal(stripReasoning("Okay, let me see...\nWait.\n</think>\n\n7 hari"), "7 hari");
+  });
+
+  it("returns an empty string for an empty reply", () => {
+    assert.equal(stripReasoning(""), "");
   });
 });

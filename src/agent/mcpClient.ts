@@ -2,7 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import path from "node:path";
 import { config } from "../config.js";
-import type { ToolSpec } from "./llm.js";
+import type { ToolSpec } from "../ollama.js";
 
 export class McpToolClient {
   private client = new Client({ name: "hr-agent", version: "1.0.0" });

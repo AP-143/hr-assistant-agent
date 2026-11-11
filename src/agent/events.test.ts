@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import type { AgentEvent } from "./events.js";
 import { runAgent } from "./harness.js";
-import type { ChatMessage, ToolSpec } from "./llm.js";
+import type { ChatMessage, ToolSpec } from "../ollama.js";
 import { McpToolClient } from "./mcpClient.js";
 import { allToolSpecs } from "./tools.js";
 

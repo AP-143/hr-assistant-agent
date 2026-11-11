@@ -1,6 +1,4 @@
-// Who the demo employees are. Identity only: the HR facts about them (manager, leave balance)
-// live behind the MCP tools, so code that only needs to know who someone is, such as the demo
-// UI, does not touch HR data.
+// Identity only; HR facts stay behind the MCP tools so the UI never touches them.
 export interface DirectoryEntry {
   id: string;
   name: string;

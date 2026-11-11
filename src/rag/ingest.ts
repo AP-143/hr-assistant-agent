@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import { config } from "../config.js";
 import { chunkMarkdown } from "./chunk.js";
-import { embed } from "./ollama.js";
-import { saveChunks } from "./store.js";
+import { embed } from "../ollama.js";
+import { saveChunks } from "./retrieve.js";
 
 async function main() {
   const markdown = await fs.readFile(config.docPath, "utf8");

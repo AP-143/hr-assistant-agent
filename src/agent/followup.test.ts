@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { condenseFollowUp, lastExchange } from "./followup.js";
-import type { ChatMessage } from "./llm.js";
+import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange } from "./followup.js";
+import type { ChatMessage } from "../ollama.js";
 
 describe("lastExchange", () => {
   it("returns the latest question and the answer that followed it", () => {
@@ -59,5 +59,32 @@ describe("condenseFollowUp", () => {
       throw new Error("model down");
     };
     assert.equal(await condenseFollowUp(broken, "Kalau Andi?", ctx), null);
+  });
+});
+
+describe("isFollowUp", () => {
+  it("recognises short questions that only make sense after the previous one", () => {
+    for (const text of ["Kalau Andi?", "Dan Maya?", "Lalu?", "Hari apa saja?", "Bagaimana dengan Sari Dewi?", "Dan yang sudah saya ambil?", "Terus gimana kalau sakit?"]) {
+      assert.equal(isFollowUp(text), true, text);
+    }
+  });
+
+  it("does not treat a complete question as a follow-up", () => {
+    for (const text of ["Berapa sisa cuti saya?", "Boleh WFH berapa hari seminggu?", "Siapa saja bawahan saya?", "Apa aturan cuti sakit?"]) {
+      assert.equal(isFollowUp(text), false, text);
+    }
+  });
+});
+
+describe("isSmallTalk", () => {
+  it("recognises greetings and thanks", () => {
+    for (const text of ["halo", "Hai!", "terima kasih", "Makasih ya", "Selamat pagi"]) {
+      assert.equal(isSmallTalk(text), true, text);
+    }
+  });
+  it("does not treat information questions as small talk", () => {
+    for (const text of ["Berapa hari cuti tahunan?", "halo, boleh WFH berapa hari?"]) {
+      assert.equal(isSmallTalk(text), false, text);
+    }
   });
 });

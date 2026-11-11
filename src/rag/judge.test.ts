@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { ChatMessage } from "../agent/llm.js";
+import type { ChatMessage } from "../ollama.js";
 import { judgeRelevance } from "./judge.js";
 
 // Seam: "do these passages answer this question?", asked of the model for scores in the grey zone.
