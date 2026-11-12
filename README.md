@@ -70,9 +70,10 @@ The model picks a tool from the tool descriptions: `search_policy` for rules, MC
 
 ## Trade-offs
 
-- **800-character chunks with 100 overlap, cut at headings:** a rule stays together with its numbers, at the cost of some repeated text.
+- **Ollama runs locally:** free and private, but it needs a strong machine and answers one question at a time. To deploy, swap `src/ollama.ts` for a hosted LLM API.
 - **Similarity threshold 0.59:** a wrong "not covered" is better than a confident wrong answer.
-- **5 KB sample corpus:** 200 pages of PDF would need text extraction and a re-measured threshold.
+- **No login:** the UI trusts the employee ID it receives, so it only runs on localhost. Production needs real sign-in, such as company SSO.
+- **Dummy data:** employees are hard-coded and the policies are one small file. Production needs the real HR database and PDF text extraction.
 
 ## Evaluation
 
