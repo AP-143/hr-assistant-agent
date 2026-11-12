@@ -11,7 +11,7 @@ export class McpToolClient {
   async connect(): Promise<void> {
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: ["--import", "tsx", path.join(config.root, "src", "mcp-server", "server.ts")],
+      args: ["--import", "tsx", path.join(config.root, "src", "mcp", "server.ts")],
       cwd: config.root,
       stderr: "ignore",
     });

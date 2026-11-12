@@ -2,7 +2,7 @@ import { config } from "../config.js";
 import { judgeRelevance } from "../rag/judge.js";
 import { retrieve } from "../rag/retrieve.js";
 import { chat, type ToolSpec } from "../ollama.js";
-import type { McpToolClient } from "./mcpClient.js";
+import type { McpToolClient } from "../mcp/client.js";
 
 export const SEARCH_POLICY = "search_policy";
 

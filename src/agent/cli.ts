@@ -2,7 +2,7 @@ import readline from "node:readline";
 import { directory, findInDirectory } from "../directory.js";
 import { runAgent } from "./harness.js";
 import type { ChatMessage } from "../ollama.js";
-import { McpToolClient } from "./mcpClient.js";
+import { McpToolClient } from "../mcp/client.js";
 import { allToolSpecs } from "./tools.js";
 
 function parseArgs() {

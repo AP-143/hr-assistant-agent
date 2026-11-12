@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 import type { AgentEvent } from "./events.js";
 import { runAgent } from "./harness.js";
 import type { ChatMessage, ToolSpec } from "../ollama.js";
-import { McpToolClient } from "./mcpClient.js";
+import { McpToolClient } from "../mcp/client.js";
 import { allToolSpecs } from "./tools.js";
 
 // Seam: the events a caller (such as the web UI) receives while runAgent works.

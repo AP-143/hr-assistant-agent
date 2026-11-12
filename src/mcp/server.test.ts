@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { McpToolClient } from "../agent/mcpClient.js";
+import { McpToolClient } from "./client.js";
 
 // These tests talk to the server only through the MCP protocol (stdio child process).
 describe("hr-tools MCP server", () => {

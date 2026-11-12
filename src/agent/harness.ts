@@ -9,9 +9,9 @@ import {
   looksLikeDecline,
   nameKnownIds,
 } from "./answer.js";
-import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange, type Exchange } from "./followup.js";
+import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange, type Exchange } from "./follow-up.js";
 import { chat, type ChatMessage, type Llm, type ToolSpec } from "../ollama.js";
-import type { McpToolClient } from "./mcpClient.js";
+import type { McpToolClient } from "../mcp/client.js";
 import { SEARCH_POLICY, runSearchPolicy, type RelevanceJudge } from "./tools.js";
 
 export interface RunResult {

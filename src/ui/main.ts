@@ -1,5 +1,5 @@
 import { runAgent } from "../agent/harness.js";
-import { McpToolClient } from "../agent/mcpClient.js";
+import { McpToolClient } from "../mcp/client.js";
 import { allToolSpecs } from "../agent/tools.js";
 import { config } from "../config.js";
 import { createUiServer } from "./server.js";

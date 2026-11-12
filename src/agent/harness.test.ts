@@ -4,7 +4,7 @@ import type { AgentEvent } from "./events.js";
 import { NOT_COVERED_REPLY } from "./answer.js";
 import { runAgent } from "./harness.js";
 import type { ChatMessage, ToolSpec } from "../ollama.js";
-import { McpToolClient } from "./mcpClient.js";
+import { McpToolClient } from "../mcp/client.js";
 import { allToolSpecs } from "./tools.js";
 
 // The LLM is replaced by a scripted fake; the MCP server and retrieval are real

@@ -1,6 +1,6 @@
 import { allToolSpecs } from "../agent/tools.js";
 import { runAgent } from "../agent/harness.js";
-import { McpToolClient } from "../agent/mcpClient.js";
+import { McpToolClient } from "../mcp/client.js";
 import { retrieve } from "../rag/retrieve.js";
 import { cases, type AgentCase, type RetrievalCase } from "./cases.js";
 

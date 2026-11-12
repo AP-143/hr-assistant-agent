@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange } from "./followup.js";
+import { condenseFollowUp, isFollowUp, isSmallTalk, lastExchange } from "./follow-up.js";
 import type { ChatMessage } from "../ollama.js";
 
 describe("lastExchange", () => {
